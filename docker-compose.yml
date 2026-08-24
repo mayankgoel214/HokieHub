@@ -1,0 +1,63 @@
+# The whole HokieHub backend on one command:
+#
+#   docker compose up --build
+#
+# API      http://localhost:8080
+# Swagger  http://localhost:8080/swagger-ui.html
+# Health   http://localhost:8080/actuator/health
+#
+# Flyway applies the schema, the seed categories and the indexes on first boot,
+# so there is no manual database setup step.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hokiehub
+      POSTGRES_USER: hokiehub
+      POSTGRES_PASSWORD: hokiehub
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hokiehub -d hokiehub"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    # Caching only. Nothing here is the system of record, so persistence is off
+    # deliberately: a cold cache is correct, a stale one is not.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/hokiehub
+      DATABASE_USER: hokiehub
+      DATABASE_PASSWORD: hokiehub
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CORS_ALLOWED_ORIGINS: http://localhost:3000
+      # Set to the Supabase project's JWT secret to accept real sessions.
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-local-development-secret-not-for-any-real-deployment}
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres-data:
