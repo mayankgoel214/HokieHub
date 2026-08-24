@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { syncUserToDatabase } from '@/lib/users'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -12,18 +11,8 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error) {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-
-        if (user) {
-          await syncUserToDatabase(user)
-        }
-      } catch (syncError) {
-        console.error('Error syncing user to database:', syncError)
-      }
-
+      // The account row is created by the API on the user's first write, so
+      // there is nothing to sync here and the web app needs no database access.
       return NextResponse.redirect(new URL(next, request.url))
     }
   }

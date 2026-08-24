@@ -1,6 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+/** Paths that create or manage a listing, and so need a signed-in Hokie. */
+const PROTECTED_PREFIXES = ['/dashboard/create', '/dashboard/mine']
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -33,15 +36,19 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (
-    !user &&
-    !request.nextUrl.pathname.startsWith('/auth/login') &&
-    !request.nextUrl.pathname.startsWith('/auth/signup') &&
-    !request.nextUrl.pathname.startsWith('/auth/callback') &&
-    !request.nextUrl.pathname.startsWith('/api/')
-  ) {
+  // Browsing the marketplace is public, matching the API, which serves listings
+  // and categories without a token. Gating the whole site behind sign-in meant a
+  // first-time visitor saw a login form for a marketplace they could not see.
+  // Only the paths that write require an account.
+  const requiresAccount = PROTECTED_PREFIXES.some((prefix) =>
+    request.nextUrl.pathname.startsWith(prefix)
+  )
+
+  if (!user && requiresAccount) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth/login'
+    // Preserve where they were headed, so signing in does not dump them at the root.
+    url.searchParams.set('next', request.nextUrl.pathname)
     return NextResponse.redirect(url)
   }
 

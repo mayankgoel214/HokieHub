@@ -63,6 +63,21 @@ class ListingApiIT {
         users.save(new User(STRANGER, "stranger@vt.edu", "Other Student"));
     }
 
+    @Test
+    @DisplayName("a valid token from a non-VT address cannot create a listing")
+    void nonVtAccountIsRefused() throws Exception {
+        String body = """
+                {"categoryId": 1, "title": "Contraband", "description": "d",
+                 "price": 1.00, "listingType": "item"}
+                """;
+
+        mvc.perform(post("/api/listings")
+                        .with(jwt().jwt(j -> j.subject("outsider").claim("email", "someone@gmail.com")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden());
+    }
+
     private String createListing(String subject, String title, String price) throws Exception {
         String body = """
                 {

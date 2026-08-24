@@ -6,6 +6,7 @@ import edu.vt.hokiehub.exception.NotFoundException;
 import edu.vt.hokiehub.repository.CategoryRepository;
 import edu.vt.hokiehub.repository.ListingRepository;
 import edu.vt.hokiehub.repository.UserRepository;
+import edu.vt.hokiehub.service.Caller;
 import edu.vt.hokiehub.web.dto.CreateListingRequest;
 import edu.vt.hokiehub.web.dto.UpdateListingRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +35,8 @@ import static org.mockito.Mockito.*;
 class ListingServiceTest {
 
     private static final String OWNER = "owner-user-id";
+    private static final Caller OWNER_CALLER =
+            new Caller(OWNER, "owner@vt.edu", "Owner Student");
     private static final String STRANGER = "some-other-user-id";
 
     @Mock private ListingRepository listings;
@@ -68,7 +71,7 @@ class ListingServiceTest {
                 List.of(new CreateListingRequest.ImagePayload("https://img/1.jpg", null, null),
                         new CreateListingRequest.ImagePayload("https://img/2.jpg", null, null)));
 
-        Listing created = service.create(OWNER, request);
+        Listing created = service.create(OWNER_CALLER, request);
 
         assertThat(created.getSeller()).isEqualTo(owner);
         assertThat(created.getTitle()).isEqualTo("Desk lamp");
@@ -95,7 +98,7 @@ class ListingServiceTest {
                         new BigDecimal("25.00"), "3 semesters"),
                 null);
 
-        Listing created = service.create(OWNER, request);
+        Listing created = service.create(OWNER_CALLER, request);
 
         assertThat(created.getListingType()).isEqualTo(ListingType.SERVICE);
         assertThat(created.getServiceDetail()).isNotNull();
@@ -111,9 +114,42 @@ class ListingServiceTest {
         var request = new CreateListingRequest(999, "Thing", "Desc",
                 BigDecimal.ONE, null, "item", null, null, null, null);
 
-        assertThatThrownBy(() -> service.create(OWNER, request))
+        assertThatThrownBy(() -> service.create(OWNER_CALLER, request))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("Category 999");
+    }
+
+    @Test
+    @DisplayName("a first-time VT user is provisioned rather than rejected")
+    void createProvisionsUnknownVtUser() {
+        when(users.findById(OWNER)).thenReturn(Optional.empty());
+        when(users.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+        when(categories.findById(1)).thenReturn(Optional.of(category));
+        when(listings.save(any(Listing.class))).thenAnswer(i -> i.getArgument(0));
+
+        var request = new CreateListingRequest(1, "Lamp", "Desc",
+                BigDecimal.ONE, null, "item", null, null, null, null);
+
+        Listing created = service.create(OWNER_CALLER, request);
+
+        assertThat(created.getSeller().getEmail()).isEqualTo("owner@vt.edu");
+        verify(users).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("a non-VT account is refused before any listing is written")
+    void createRejectsNonVtEmail() {
+        var outsider = new Caller("outsider-id", "someone@gmail.com", "Outsider");
+        when(users.findById("outsider-id")).thenReturn(Optional.empty());
+
+        var request = new CreateListingRequest(1, "Lamp", "Desc",
+                BigDecimal.ONE, null, "item", null, null, null, null);
+
+        assertThatThrownBy(() -> service.create(outsider, request))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("@vt.edu");
+        verify(users, never()).save(any(User.class));
+        verify(listings, never()).save(any(Listing.class));
     }
 
     @Test

@@ -22,16 +22,18 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { CreateListingRequest, ItemCondition, ListingType } from '@/types/listings'
+import { createListing, ApiError } from '@/lib/api'
+import { createClient } from '@/lib/supabase/client'
+import type { CreateListingBody, ItemCondition, ListingType } from '@/types/api'
 
 export default function CreateListingPage() {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [formData, setFormData] = useState<Partial<CreateListingRequest>>({
-    listing_type: 'item',
-    category_id: 1,
+  const [formData, setFormData] = useState<Partial<CreateListingBody>>({
+    listingType: 'item',
+    categoryId: 1,
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,23 +42,26 @@ export default function CreateListingPage() {
     setError(null)
 
     try {
-      const response = await fetch('/api/listings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      })
+      // The API is a separate service, so the Supabase session cookie does not
+      // reach it — the access token has to be sent explicitly.
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create listing')
+      if (!session) {
+        throw new Error('Your session has expired. Please sign in again.')
       }
 
+      await createListing(formData as CreateListingBody, session.access_token)
       router.push('/dashboard')
+      router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      // ApiError already carries the API's own message, including the first
+      // field-level validation failure.
+      setError(
+        err instanceof ApiError || err instanceof Error
+          ? err.message
+          : 'An error occurred'
+      )
     } finally {
       setIsSubmitting(false)
     }
@@ -90,14 +95,14 @@ export default function CreateListingPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="listing_type">Listing Type</Label>
+                <Label htmlFor="listingType">Listing Type</Label>
                 <Select
-                  value={formData.listing_type}
+                  value={formData.listingType}
                   onValueChange={(value: ListingType) =>
-                    setFormData({ ...formData, listing_type: value })
+                    setFormData({ ...formData, listingType: value })
                   }
                 >
-                  <SelectTrigger id="listing_type">
+                  <SelectTrigger id="listingType">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -136,7 +141,7 @@ export default function CreateListingPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="price">
-                  Price * {formData.listing_type === 'service' && '(per hour)'}
+                  Price * {formData.listingType === 'service' && '(per hour)'}
                 </Label>
                 <Input
                   id="price"
@@ -152,7 +157,7 @@ export default function CreateListingPage() {
                 />
               </div>
 
-              {formData.listing_type === 'item' && (
+              {formData.listingType === 'item' && (
                 <div className="space-y-2">
                   <Label htmlFor="condition">Condition</Label>
                   <Select
@@ -188,14 +193,14 @@ export default function CreateListingPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="category_id">Category *</Label>
+                <Label htmlFor="categoryId">Category *</Label>
                 <Select
-                  value={formData.category_id?.toString()}
+                  value={formData.categoryId?.toString()}
                   onValueChange={(value) =>
-                    setFormData({ ...formData, category_id: parseInt(value) })
+                    setFormData({ ...formData, categoryId: parseInt(value) })
                   }
                 >
-                  <SelectTrigger id="category_id">
+                  <SelectTrigger id="categoryId">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

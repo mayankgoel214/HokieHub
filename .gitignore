@@ -12,3 +12,4 @@ next-env.d.ts
 # Java / Maven
 api/target/
 *.class
+.env.local

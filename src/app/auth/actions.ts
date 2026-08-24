@@ -3,7 +3,6 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { syncUserToDatabase } from '@/lib/users'
 
 export async function login(formData: FormData) {
   const supabase = await createClient()
@@ -24,17 +23,6 @@ export async function login(formData: FormData) {
     return { error: error.message }
   }
 
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (user) {
-      await syncUserToDatabase(user)
-    }
-  } catch (syncError) {
-    console.error('Error syncing user on login:', syncError)
-  }
 
   revalidatePath('/', 'layout')
   redirect('/')

@@ -1,5 +1,6 @@
 package edu.vt.hokiehub.web;
 
+import edu.vt.hokiehub.service.Caller;
 import edu.vt.hokiehub.service.ListingService;
 import edu.vt.hokiehub.web.dto.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -69,7 +70,7 @@ public class ListingController {
     @ApiResponse(responseCode = "201", description = "Created")
     public ResponseEntity<ListingResponse> create(@AuthenticationPrincipal Jwt jwt,
                                                   @Valid @RequestBody CreateListingRequest request) {
-        var created = service.create(jwt.getSubject(), request);
+        var created = service.create(Caller.from(jwt), request);
         return ResponseEntity
                 .created(URI.create("/api/listings/" + created.getId()))
                 .body(ListingResponse.detail(created));

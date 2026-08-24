@@ -13,8 +13,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Hokie Hub",
-  description: "Hokie Hub application",
+  // Without this the generated og:image resolves to a relative URL and the
+  // link-preview card comes out blank.
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ??
+      (process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : "http://localhost:3000"),
+  ),
+  title: "HokieHub — the Virginia Tech student marketplace",
+  description:
+    "Buy and sell textbooks, dorm furniture and tutoring within Virginia Tech. Every account is verified against an @vt.edu address.",
+  openGraph: {
+    title: "HokieHub — the Virginia Tech student marketplace",
+    description:
+      "Textbooks, dorm furniture, monitors and tutoring, traded between students on the same campus.",
+    type: "website",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({

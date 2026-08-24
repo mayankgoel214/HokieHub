@@ -71,9 +71,8 @@ public class ListingService {
     }
 
     @Transactional
-    public Listing create(String sellerId, CreateListingRequest request) {
-        User seller = users.findById(sellerId)
-                .orElseThrow(() -> new NotFoundException("User " + sellerId + " not found"));
+    public Listing create(Caller caller, CreateListingRequest request) {
+        User seller = users.findById(caller.id()).orElseGet(() -> provision(caller));
         Category category = categories.findById(request.categoryId())
                 .orElseThrow(() -> new NotFoundException("Category " + request.categoryId() + " not found"));
 
@@ -134,6 +133,23 @@ public class ListingService {
                 .orElseThrow(() -> new NotFoundException("Listing " + id + " not found"));
         requireOwner(listing, userId);
         listings.delete(listing);
+    }
+
+    /**
+     * A valid Supabase token can arrive from someone this service has never stored,
+     * so the account is created on first write rather than rejected.
+     *
+     * The database also constrains the address with CHECK (email LIKE '%@vt.edu'),
+     * but relying on that alone surfaces a constraint violation as a 500. Checking
+     * here turns "you are not a Virginia Tech account" into an answer the caller
+     * can act on.
+     */
+    private User provision(Caller caller) {
+        String email = caller.email() == null ? null : caller.email().trim().toLowerCase();
+        if (email == null || !email.endsWith("@vt.edu")) {
+            throw new ForbiddenException("HokieHub is limited to @vt.edu accounts");
+        }
+        return users.save(new User(caller.id(), email, caller.fullName()));
     }
 
     /**

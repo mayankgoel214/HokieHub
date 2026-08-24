@@ -10,26 +10,15 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Listing } from '@/types/listings'
+import { listListings } from '@/lib/api'
+import type { Listing } from '@/types/api'
 
-async function getListings() {
+async function getListings(): Promise<Listing[]> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-
-    const response = await fetch(`${baseUrl}/api/listings`, {
-      cache: 'no-store',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-
-    if (!response.ok) {
-      console.error('Response not OK:', response.status, response.statusText)
-      return []
-    }
-
-    const data = await response.json()
-    return data.listings || []
+    // Browsing is public, so this needs no token. The API pages its results;
+    // the dashboard shows the first page.
+    const page = await listListings({ size: 24 })
+    return page.content
   } catch (error) {
     console.error('Error fetching listings:', error)
     return []
@@ -37,7 +26,7 @@ async function getListings() {
 }
 
 export default async function DashboardPage() {
-  const listings: Listing[] = await getListings()
+  const listings = await getListings()
 
   return (
     <div className="min-h-screen bg-background">
@@ -82,7 +71,7 @@ export default async function DashboardPage() {
                       <span className="text-sm font-semibold">
                         ${Number(listing.price).toFixed(2)}
                       </span>
-                      {listing.listing_type === 'service' && (
+                      {listing.listingType === 'service' && (
                         <span className="text-muted-foreground text-xs">
                           /hr
                         </span>
@@ -120,9 +109,9 @@ export default async function DashboardPage() {
                 </CardContent>
                 <CardFooter className="border-t">
                   <div className="flex w-full items-center justify-between text-xs text-muted-foreground">
-                    <span>{listing.views_count} views</span>
+                    <span>{listing.viewsCount} views</span>
                     <span>
-                      {new Date(listing.created_at).toLocaleDateString()}
+                      {new Date(listing.createdAt).toLocaleDateString()}
                     </span>
                   </div>
                 </CardFooter>
