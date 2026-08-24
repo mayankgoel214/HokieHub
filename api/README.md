@@ -36,6 +36,32 @@ real migrations, so the schema, the `CHECK` constraints, the `text[]` column and
 the Hibernate mapping are all verified together — none of which an in-memory
 database would catch.
 
+## Deploying
+
+Vercel cannot host a JVM application, so the API deploys separately from the web
+client. On Railway: **New Project → Deploy from GitHub repo**, set the service's
+root directory to `api`, then add a PostgreSQL and a Redis plugin to the same
+project and set these variables on the API service.
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | `jdbc:postgresql://${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}` |
+| `DATABASE_USER` | `${{Postgres.PGUSER}}` |
+| `DATABASE_PASSWORD` | `${{Postgres.PGPASSWORD}}` |
+| `REDIS_HOST` | `${{Redis.REDISHOST}}` |
+| `REDIS_PORT` | `${{Redis.REDISPORT}}` |
+| `SUPABASE_JWT_SECRET` | the Supabase project's JWT secret |
+| `CORS_ALLOWED_ORIGINS` | the deployed web client's origin |
+
+`DATABASE_URL` is spelled out rather than referencing Railway's own
+`DATABASE_URL`, because Railway supplies a `postgresql://user:pass@host/db` URI
+and the JDBC driver needs a `jdbc:postgresql://` URL with the credentials passed
+separately. Railway sets `PORT` itself, which `application.yml` already reads.
+
+Flyway runs on first boot, so the schema and the seeded categories are applied
+without a manual step. The web client then needs `NEXT_PUBLIC_API_URL` pointed
+at the deployed API.
+
 ## Design notes
 
 **Why a separate service.** The Next.js API routes ran raw SQL against a
