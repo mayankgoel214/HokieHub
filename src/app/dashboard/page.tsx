@@ -14,15 +14,24 @@ import { Badge } from "@/components/ui/badge";
 import { listListings } from "@/lib/api";
 import type { Listing } from "@/types/api";
 
-async function getListings(q: string): Promise<Listing[]> {
+/**
+ * An unreachable API and an empty marketplace are different things, and this
+ * used to render both as "No listings found" — an outage looked exactly like a
+ * marketplace nobody had posted to yet.
+ */
+async function getListings(
+  q: string,
+): Promise<
+  { listings: Listing[]; failed: false } | { listings: null; failed: true }
+> {
   try {
     // Browsing is public, so this needs no token. The API pages its results;
     // the dashboard shows the first page.
     const page = await listListings({ size: 24, q });
-    return page.content;
+    return { listings: page.content, failed: false };
   } catch (error) {
     console.error("Error fetching listings:", error);
-    return [];
+    return { listings: null, failed: true };
   }
 }
 
@@ -32,7 +41,8 @@ export default async function DashboardPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q = "" } = await searchParams;
-  const listings = await getListings(q);
+  const result = await getListings(q);
+  const listings = result.listings ?? [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -71,7 +81,19 @@ export default async function DashboardPage({
           </Button>
         </form>
 
-        {listings.length === 0 ? (
+        {result.failed ? (
+          <div className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed">
+            <div className="max-w-md text-center">
+              <h3 className="text-lg font-semibold">
+                The marketplace is unreachable
+              </h3>
+              <p className="text-muted-foreground mt-2 text-pretty">
+                The listings service did not respond. This is not an empty
+                marketplace — nothing could be loaded at all. Try again shortly.
+              </p>
+            </div>
+          </div>
+        ) : listings.length === 0 ? (
           <div className="flex min-h-[400px] items-center justify-center rounded-lg border-2 border-dashed">
             <div className="text-center">
               <h3 className="text-lg font-semibold">
