@@ -69,10 +69,21 @@ connection pool, with authorisation checked inline per route. Moving the domain
 into a service layer puts every mutation behind one ownership check and makes
 the rules testable without HTTP.
 
-**The N+1 problem.** A listing needs its seller and category. Left to default
-lazy loading, a page of 20 listings issues 41 queries — one for the page and two
-per row. `ListingRepository` uses `@EntityGraph` so those come back in a single
-join, and `open-in-view` is disabled so a lazy association can never be resolved
+**The N+1 problem.** A listing needs its seller and category. Left to the
+mapping's own fetch plan, rendering a page of 20 listings costs **62 statements**;
+through the entity graph it costs **2**. Both figures are measured, not reasoned:
+`ListingQueryCountIT` reads Hibernate's own statement counter for each.
+
+The 62 breaks down as the page query, the count query pagination issues, and
+three loads per row — seller, category, and service detail. That third one is
+the interesting one. `Listing.serviceDetail` is annotated `FetchType.LAZY` and it
+is ignored, because it is the inverse side of a one-to-one: Hibernate cannot hand
+out a proxy without first asking the database whether the row exists. No
+annotation on the entity switches that off. What does switch it off is the fetch
+graph — a Spring Data `@EntityGraph` treats every attribute it does not name as
+lazy — which is why the same page comes back in one join.
+
+`open-in-view` is disabled as well, so a lazy association can never be resolved
 accidentally during JSON serialisation.
 
 **Pagination.** The original `getAllListings()` was `SELECT l.* FROM listings`
