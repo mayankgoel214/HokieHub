@@ -28,6 +28,10 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      # Empty by default: the Compose Redis is on a private network with no
+      # password, but a managed one requires auth, and without this the client
+      # fails every command with NOAUTH after the connection appears to succeed.
+      password: ${REDIS_PASSWORD:}
 
   cache:
     type: ${CACHE_TYPE:redis}

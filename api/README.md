@@ -50,6 +50,7 @@ project and set these variables on the API service.
 | `DATABASE_PASSWORD` | `${{Postgres.PGPASSWORD}}` |
 | `REDIS_HOST` | `${{Redis.REDISHOST}}` |
 | `REDIS_PORT` | `${{Redis.REDISPORT}}` |
+| `REDIS_PASSWORD` | `${{Redis.REDISPASSWORD}}` — a managed Redis requires auth |
 | `SUPABASE_JWT_SECRET` | the Supabase project's JWT secret |
 | `CORS_ALLOWED_ORIGINS` | the deployed web client's origin |
 
