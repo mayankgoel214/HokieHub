@@ -43,6 +43,11 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // Declared before the wildcard below, which would otherwise match it:
+                // "/api/listings/*" covers a single path segment, and "mine" is one.
+                // Left permitted, the controller received a null principal and
+                // answered an anonymous request with a 500 instead of a 401.
+                .requestMatchers(HttpMethod.GET, "/api/listings/mine").authenticated()
                 // Browsing the marketplace does not require an account; posting does.
                 .requestMatchers(HttpMethod.GET, "/api/listings", "/api/listings/*").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/categories").permitAll()

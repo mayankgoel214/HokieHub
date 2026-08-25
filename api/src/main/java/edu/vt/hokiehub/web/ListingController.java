@@ -36,7 +36,8 @@ public class ListingController {
 
     @GetMapping
     @Operation(summary = "Browse listings",
-               description = "Paged and filterable. Filtering by a top-level category also "
+               description = "Paged and filterable. `q` matches the title or description, "
+                           + "case-insensitively. Filtering by a top-level category also "
                            + "returns listings filed under its subcategories.")
     public PageResponse<ListingResponse> list(
             @RequestParam(defaultValue = "0") int page,
@@ -45,7 +46,8 @@ public class ListingController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String listingType,
             @RequestParam(required = false) BigDecimal minPrice,
-            @RequestParam(required = false) BigDecimal maxPrice) {
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) String q) {
 
         var pageable = PageRequest.of(
                 Math.max(page, 0),
@@ -53,7 +55,7 @@ public class ListingController {
                 Sort.by(Sort.Direction.DESC, "createdAt"));
 
         Page<edu.vt.hokiehub.domain.Listing> result =
-                service.search(categoryId, status, listingType, minPrice, maxPrice, pageable);
+                service.search(categoryId, status, listingType, minPrice, maxPrice, q, pageable);
 
         return PageResponse.from(result, ListingResponse::summary);
     }

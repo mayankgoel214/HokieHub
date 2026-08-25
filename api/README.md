@@ -117,7 +117,7 @@ src/main/resources/db/migration/
 
 | Method | Path | Auth |
 |---|---|---|
-| `GET` | `/api/listings` | public — paged, filter by category, status, type, price |
+| `GET` | `/api/listings` | public — paged; `q` searches title and description, and filters by category, status, type, price |
 | `GET` | `/api/listings/{id}` | public — includes images and service details |
 | `GET` | `/api/listings/mine` | required |
 | `POST` | `/api/listings` | required |

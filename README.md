@@ -47,8 +47,19 @@ docker compose up --build
 The web client:
 
 ```bash
+cp .env.example .env.local     # then fill in the Supabase project values
 npm install && npm run dev     # http://localhost:3000
 ```
+
+| Variable | What it is |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | the Supabase project used for sign-in |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | that project's publishable key |
+| `NEXT_PUBLIC_API_URL` | where the Spring API is reachable |
+| `NEXT_PUBLIC_SITE_URL` | this app's own origin, used for the email confirmation link |
+
+Browsing works without any Supabase configuration; only signing in and posting
+need it.
 
 ## Tests
 

@@ -31,24 +31,28 @@ public class ListingService {
     }
 
     @Transactional(readOnly = true)
-    public Page<Listing> findAll(Pageable pageable) {
-        return listings.findAllWithSellerAndCategory(pageable);
+    public Page<Listing> search(Integer categoryId, String status, String listingType,
+                                BigDecimal minPrice, BigDecimal maxPrice, String q,
+                                Pageable pageable) {
+        return listings.search(
+                categoryId,
+                status == null ? null : ListingStatus.from(status),
+                listingType == null ? null : ListingType.from(listingType),
+                minPrice,
+                maxPrice,
+                likePattern(q),
+                pageable);
     }
 
-    @Transactional(readOnly = true)
-    public Page<Listing> search(Integer categoryId, String status, String listingType,
-                                BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
-        if (categoryId != null) {
-            return listings.search(
-                    categoryId,
-                    status == null ? null : ListingStatus.from(status),
-                    listingType == null ? null : ListingType.from(listingType),
-                    minPrice, maxPrice, pageable);
+    /**
+     * A blank `q` means "no keyword", not "match the empty string", so it collapses
+     * to null and the predicate drops out of the query entirely.
+     */
+    private static String likePattern(String q) {
+        if (q == null || q.isBlank()) {
+            return null;
         }
-        if (status != null) {
-            return listings.findByStatus(ListingStatus.from(status), pageable);
-        }
-        return listings.findAllWithSellerAndCategory(pageable);
+        return "%" + q.trim().toLowerCase() + "%";
     }
 
     @Transactional(readOnly = true)

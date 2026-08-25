@@ -79,17 +79,22 @@ class ListingApiIT {
     }
 
     private String createListing(String subject, String title, String price) throws Exception {
+        return createListing(subject, title, price, 1, "Test description");
+    }
+
+    private String createListing(String subject, String title, String price,
+                                 int categoryId, String description) throws Exception {
         String body = """
                 {
-                  "categoryId": 1,
+                  "categoryId": %d,
                   "title": "%s",
-                  "description": "Test description",
+                  "description": "%s",
                   "price": %s,
                   "condition": "good",
                   "listingType": "item",
                   "location": "Blacksburg"
                 }
-                """.formatted(title, price);
+                """.formatted(categoryId, title, description, price);
 
         String response = mvc.perform(post("/api/listings")
                         .with(jwt().jwt(j -> j.subject(subject)))
@@ -251,5 +256,71 @@ class ListingApiIT {
 
         mvc.perform(get("/api/listings/" + id))
                 .andExpect(jsonPath("$.viewsCount").value(2));
+    }
+
+    @Test
+    @DisplayName("/mine without a token is a 401, not a 500")
+    void mineRequiresAToken() throws Exception {
+        mvc.perform(get("/api/listings/mine")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("keyword search matches the title, case-insensitively, and excludes the rest")
+    void searchMatchesTitle() throws Exception {
+        createListing(OWNER, "Organic Chemistry textbook", "45.00");
+        createListing(OWNER, "Mini fridge", "80.00");
+
+        mvc.perform(get("/api/listings").param("q", "chemistry"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].title").value("Organic Chemistry textbook"));
+    }
+
+    @Test
+    @DisplayName("keyword search also matches the description")
+    void searchMatchesDescription() throws Exception {
+        createListing(OWNER, "Textbook", "45.00", 1, "Barely used, CHEM 1035, no highlighting");
+        createListing(OWNER, "Desk lamp", "12.00", 1, "Works fine");
+
+        mvc.perform(get("/api/listings").param("q", "chem 1035"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].title").value("Textbook"));
+    }
+
+    @Test
+    @DisplayName("a blank q is not a filter and returns everything")
+    void blankSearchIsNotAFilter() throws Exception {
+        createListing(OWNER, "One", "10.00");
+        createListing(OWNER, "Two", "20.00");
+
+        mvc.perform(get("/api/listings").param("q", "   "))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2));
+    }
+
+    @Test
+    @DisplayName("a price filter is honoured without a category, which it previously was not")
+    void priceFilterAppliesWithoutACategory() throws Exception {
+        createListing(OWNER, "Cheap", "10.00");
+        createListing(OWNER, "Expensive", "500.00");
+
+        mvc.perform(get("/api/listings").param("maxPrice", "50"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].title").value("Cheap"));
+    }
+
+    @Test
+    @DisplayName("a top-level category returns both its own listings and its children's")
+    void categoryFilterFollowsTheTree() throws Exception {
+        // 1 is Textbooks; 13 is Engineering, filed under it.
+        createListing(OWNER, "Filed at the top level", "10.00", 1, "d");
+        createListing(OWNER, "Filed under a subcategory", "20.00", 13, "d");
+        createListing(OWNER, "Filed elsewhere", "30.00", 2, "d");
+
+        mvc.perform(get("/api/listings").param("categoryId", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2));
     }
 }
