@@ -69,6 +69,24 @@ mvn test      # unit tests — fast, no Docker
 mvn verify    # adds integration tests against a real PostgreSQL container
 ```
 
+## The deployed instance
+
+| | |
+|---|---|
+| API | https://api-production-73e8.up.railway.app |
+| Swagger UI | https://api-production-73e8.up.railway.app/swagger-ui.html |
+
+The listings on the deployed instance are **seeded demo data**, not real
+students — four invented sellers and their inventory, so the marketplace has
+something to browse. Anyone signing up with a real `@vt.edu` address posts
+alongside them.
+
+Railway's own builder never produced a working deployment for this service —
+every attempt failed before emitting a line of build output, across both a
+GitHub-linked source and a direct upload, in two regions. The image is
+therefore built by GitHub Actions and published to
+`ghcr.io/mayankgoel214/hokiehub-api`, and Railway runs that tag.
+
 ## Data model
 
 Five tables. Categories are a two-level tree modelled as a self-reference —
