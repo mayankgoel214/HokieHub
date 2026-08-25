@@ -28,7 +28,15 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Value("${hokiehub.jwt.secret}")
+    /**
+     * Deliberately without a default. This value is the only thing standing between
+     * an anonymous request and a forged session, and application.yml used to carry a
+     * development fallback — which meant a deployment that simply forgot to set the
+     * variable came up looking healthy while accepting tokens anyone could mint from
+     * a string committed to this repository. A missing secret must stop the service,
+     * not be quietly substituted.
+     */
+    @Value("${hokiehub.jwt.secret:}")
     private String jwtSecret;
 
     @Value("${hokiehub.cors.allowed-origins}")
@@ -61,6 +69,13 @@ public class SecurityConfig {
 
     @Bean
     JwtDecoder jwtDecoder() {
+        if (jwtSecret == null || jwtSecret.isBlank()) {
+            throw new IllegalStateException(
+                    "SUPABASE_JWT_SECRET is not set. It is the Supabase project's JWT "
+                  + "secret, and without it this service cannot tell a real session "
+                  + "from a forged one. Set it before starting.");
+        }
+
         // Supabase signs project JWTs with HS256 using the project's JWT secret.
         SecretKeySpec key = new SecretKeySpec(
                 jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");

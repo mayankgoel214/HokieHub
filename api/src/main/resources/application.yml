@@ -38,9 +38,10 @@ spring:
 
 hokiehub:
   jwt:
-    # The Supabase project's JWT secret. Overridden in every real environment;
-    # the fallback exists only so a local run starts without configuration.
-    secret: ${SUPABASE_JWT_SECRET:local-development-secret-not-for-any-real-deployment}
+    # No default. A forgotten secret has to be a startup failure, not a service
+    # that boots and trusts tokens signed with a string from a public repository.
+    # docker-compose.yml supplies a throwaway value for local runs.
+    secret: ${SUPABASE_JWT_SECRET:}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
 
