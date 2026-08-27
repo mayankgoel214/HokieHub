@@ -1,13 +1,41 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 /** Paths that create or manage a listing, and so need a signed-in Hokie. */
 const PROTECTED_PREFIXES = ["/dashboard/create"];
+
+// Browsing the marketplace is public, matching the API, which serves listings
+// and categories without a token. Gating the whole site behind sign-in meant a
+// first-time visitor saw a login form for a marketplace they could not see.
+// Only the paths that write require an account.
+function requiresAccount(request: NextRequest): boolean {
+  return PROTECTED_PREFIXES.some((prefix) =>
+    request.nextUrl.pathname.startsWith(prefix),
+  );
+}
+
+function toLogin(request: NextRequest) {
+  const url = request.nextUrl.clone();
+  url.pathname = "/auth/login";
+  // Preserve where they were headed, so signing in does not dump them at the root.
+  url.searchParams.set("next", request.nextUrl.pathname);
+  return NextResponse.redirect(url);
+}
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
+
+  // With no identity provider configured there is no session to read, and
+  // building the client throws on every request — which took the public
+  // marketplace down along with the pages that actually need an account.
+  // Fail closed: nobody is signed in, so anything protected goes to login,
+  // and everything public renders as it always did.
+  if (!isSupabaseConfigured()) {
+    return requiresAccount(request) ? toLogin(request) : supabaseResponse;
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -36,20 +64,8 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Browsing the marketplace is public, matching the API, which serves listings
-  // and categories without a token. Gating the whole site behind sign-in meant a
-  // first-time visitor saw a login form for a marketplace they could not see.
-  // Only the paths that write require an account.
-  const requiresAccount = PROTECTED_PREFIXES.some((prefix) =>
-    request.nextUrl.pathname.startsWith(prefix),
-  );
-
-  if (!user && requiresAccount) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/auth/login";
-    // Preserve where they were headed, so signing in does not dump them at the root.
-    url.searchParams.set("next", request.nextUrl.pathname);
-    return NextResponse.redirect(url);
+  if (!user && requiresAccount(request)) {
+    return toLogin(request);
   }
 
   if (
