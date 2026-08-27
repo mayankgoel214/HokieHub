@@ -3,8 +3,20 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+
+/**
+ * Said once, plainly, rather than letting the Supabase client throw a stack
+ * trace at someone trying to sign in.
+ */
+const NOT_CONFIGURED =
+  "Accounts are not available on this deployment yet — no identity provider is configured. Browsing the marketplace works without one.";
 
 export async function login(formData: FormData) {
+  if (!isSupabaseConfigured()) {
+    return { error: NOT_CONFIGURED };
+  }
+
   const supabase = await createClient();
 
   const email = formData.get("email") as string;
@@ -28,6 +40,10 @@ export async function login(formData: FormData) {
 }
 
 export async function signup(formData: FormData) {
+  if (!isSupabaseConfigured()) {
+    return { error: NOT_CONFIGURED };
+  }
+
   const supabase = await createClient();
 
   const email = formData.get("email") as string;
@@ -56,6 +72,10 @@ export async function signup(formData: FormData) {
 }
 
 export async function signout() {
+  if (!isSupabaseConfigured()) {
+    redirect("/auth/login");
+  }
+
   const supabase = await createClient();
   await supabase.auth.signOut();
   revalidatePath("/", "layout");
