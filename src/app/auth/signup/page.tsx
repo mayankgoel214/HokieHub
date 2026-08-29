@@ -1,11 +1,11 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { signup } from '../actions'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { useState } from "react";
+import { signup } from "../actions";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -13,28 +13,28 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
+} from "@/components/ui/card";
 
 export default function SignupPage() {
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setError(null)
-    setSuccess(null)
-    setLoading(true)
+    event.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
 
-    const formData = new FormData(event.currentTarget)
-    const result = await signup(formData)
+    const formData = new FormData(event.currentTarget);
+    const result = await signup(formData);
 
     if (result?.error) {
-      setError(result.error)
-      setLoading(false)
+      setError(result.error);
+      setLoading(false);
     } else if (result?.success) {
-      setSuccess(result.success)
-      setLoading(false)
+      setSuccess(result.success);
+      setLoading(false);
     }
   }
 
@@ -42,7 +42,7 @@ export default function SignupPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold">Hokie Hub</CardTitle>
+          <CardTitle className="text-3xl font-bold">HokieHub</CardTitle>
           <CardDescription>
             Create your account with Virginia Tech email
           </CardDescription>
@@ -92,19 +92,15 @@ export default function SignupPage() {
               </div>
             )}
 
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full"
-            >
-              {loading ? 'Creating account...' : 'Sign up'}
+            <Button type="submit" disabled={loading} className="w-full">
+              {loading ? "Creating account..." : "Sign up"}
             </Button>
           </form>
         </CardContent>
 
         <CardFooter className="justify-center">
           <p className="text-center text-sm text-muted-foreground">
-            Already have an account?{' '}
+            Already have an account?{" "}
             <Link
               href="/auth/login"
               className="font-medium underline underline-offset-4 hover:text-primary"
@@ -115,5 +111,5 @@ export default function SignupPage() {
         </CardFooter>
       </Card>
     </div>
-  )
+  );
 }

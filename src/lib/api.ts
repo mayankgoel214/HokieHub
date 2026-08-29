@@ -105,6 +105,22 @@ export function createListing(
   });
 }
 
+export function updateListing(
+  id: string,
+  body: Partial<CreateListingBody> & { status?: string },
+  token: string,
+): Promise<Listing> {
+  return request<Listing>(`/api/listings/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+    token,
+  });
+}
+
+export function deleteListing(id: string, token: string): Promise<void> {
+  return request<void>(`/api/listings/${id}`, { method: "DELETE", token });
+}
+
 export function myListings(
   token: string,
   page = 0,

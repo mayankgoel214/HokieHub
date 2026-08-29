@@ -1,71 +1,90 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from "@/components/ui/select";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
-import { createListing, ApiError } from '@/lib/api'
-import { createClient } from '@/lib/supabase/client'
-import type { CreateListingBody, ItemCondition, ListingType } from '@/types/api'
+} from "@/components/ui/card";
+import { createListing, listCategories, ApiError } from "@/lib/api";
+import { createClient } from "@/lib/supabase/client";
+import type {
+  Category,
+  CreateListingBody,
+  ItemCondition,
+  ListingType,
+} from "@/types/api";
 
 export default function CreateListingPage() {
-  const router = useRouter()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<Partial<CreateListingBody>>({
-    listingType: 'item',
-    categoryId: 1,
-  })
+    listingType: "item",
+  });
+
+  // The options used to be six hardcoded names against a database that has
+  // thirty-two, and the ids did not line up with any of them: choosing
+  // "Electronics" filed the listing under Textbooks. They come from the API now,
+  // which is where the category tree actually lives.
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesFailed, setCategoriesFailed] = useState(false);
+
+  useEffect(() => {
+    listCategories()
+      .then(setCategories)
+      .catch(() => setCategoriesFailed(true));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    setError(null)
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
 
     try {
       // The API is a separate service, so the Supabase session cookie does not
       // reach it — the access token has to be sent explicitly.
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (!session) {
-        throw new Error('Your session has expired. Please sign in again.')
+        throw new Error("Your session has expired. Please sign in again.");
       }
 
-      await createListing(formData as CreateListingBody, session.access_token)
-      router.push('/browse')
-      router.refresh()
+      await createListing(formData as CreateListingBody, session.access_token);
+      router.push("/browse");
+      router.refresh();
     } catch (err) {
       // ApiError already carries the API's own message, including the first
       // field-level validation failure.
       setError(
         err instanceof ApiError || err instanceof Error
           ? err.message
-          : 'An error occurred'
-      )
+          : "An error occurred",
+      );
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -74,7 +93,7 @@ export default function CreateListingPage() {
           <Link href="/browse">
             <Button variant="ghost" size="sm">
               <ArrowLeft className="size-4" />
-              Back to Dashboard
+              Back to listings
             </Button>
           </Link>
         </div>
@@ -118,7 +137,7 @@ export default function CreateListingPage() {
                   id="title"
                   required
                   placeholder="e.g., iPhone 13 Pro Max"
-                  value={formData.title || ''}
+                  value={formData.title || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, title: e.target.value })
                   }
@@ -132,7 +151,7 @@ export default function CreateListingPage() {
                   required
                   placeholder="Provide a detailed description..."
                   rows={4}
-                  value={formData.description || ''}
+                  value={formData.description || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, description: e.target.value })
                   }
@@ -141,7 +160,7 @@ export default function CreateListingPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="price">
-                  Price * {formData.listingType === 'service' && '(per hour)'}
+                  Price * {formData.listingType === "service" && "(per hour)"}
                 </Label>
                 <Input
                   id="price"
@@ -150,14 +169,17 @@ export default function CreateListingPage() {
                   min="0"
                   step="0.01"
                   placeholder="0.00"
-                  value={formData.price || ''}
+                  value={formData.price || ""}
                   onChange={(e) =>
-                    setFormData({ ...formData, price: parseFloat(e.target.value) })
+                    setFormData({
+                      ...formData,
+                      price: parseFloat(e.target.value),
+                    })
                   }
                 />
               </div>
 
-              {formData.listingType === 'item' && (
+              {formData.listingType === "item" && (
                 <div className="space-y-2">
                   <Label htmlFor="condition">Condition</Label>
                   <Select
@@ -185,7 +207,7 @@ export default function CreateListingPage() {
                 <Input
                   id="location"
                   placeholder="e.g., Blacksburg, VA"
-                  value={formData.location || ''}
+                  value={formData.location || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, location: e.target.value })
                   }
@@ -195,32 +217,51 @@ export default function CreateListingPage() {
               <div className="space-y-2">
                 <Label htmlFor="categoryId">Category *</Label>
                 <Select
-                  value={formData.categoryId?.toString()}
+                  value={formData.categoryId?.toString() ?? ""}
                   onValueChange={(value) =>
                     setFormData({ ...formData, categoryId: parseInt(value) })
                   }
+                  disabled={categories.length === 0}
                 >
                   <SelectTrigger id="categoryId">
-                    <SelectValue />
+                    <SelectValue
+                      placeholder={
+                        categoriesFailed
+                          ? "Categories could not be loaded"
+                          : categories.length === 0
+                            ? "Loading categories…"
+                            : "Select a category"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1">Electronics</SelectItem>
-                    <SelectItem value="2">Furniture</SelectItem>
-                    <SelectItem value="3">Books</SelectItem>
-                    <SelectItem value="4">Clothing</SelectItem>
-                    <SelectItem value="5">Services</SelectItem>
-                    <SelectItem value="6">Other</SelectItem>
+                    {categories.map((parent) => [
+                      <SelectItem key={parent.id} value={parent.id.toString()}>
+                        {parent.name}
+                      </SelectItem>,
+                      ...parent.children.map((child) => (
+                        <SelectItem key={child.id} value={child.id.toString()}>
+                          &nbsp;&nbsp;{child.name}
+                        </SelectItem>
+                      )),
+                    ])}
                   </SelectContent>
                 </Select>
+                {categoriesFailed && (
+                  <p className="text-destructive text-sm">
+                    The category list could not be loaded, so a listing cannot
+                    be filed correctly. Reload the page to try again.
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-4">
                 <Button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !formData.categoryId}
                   className="flex-1"
                 >
-                  {isSubmitting ? 'Creating...' : 'Create Listing'}
+                  {isSubmitting ? "Creating..." : "Create Listing"}
                 </Button>
                 <Link href="/browse" className="flex-1">
                   <Button type="button" variant="outline" className="w-full">
@@ -233,5 +274,5 @@ export default function CreateListingPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

@@ -1,13 +1,30 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { signout } from "@/app/auth/actions";
+import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 /**
  * Every page had been an island: no logo, no way back to the marketplace, no
  * route to signing in. A visitor who landed on a listing from a shared link had
  * nowhere to go but the back button.
+ *
+ * It also has to know who is signed in. It previously showed "Sign in" to
+ * everyone, including people who already were, and offered no way to sign out
+ * at all — the action existed and nothing ever called it.
  */
-export function SiteHeader() {
+export async function SiteHeader() {
+  let email: string | null = null;
+
+  if (isSupabaseConfigured()) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    email = user?.email ?? null;
+  }
+
   return (
     <header className="bg-background/80 sticky top-0 z-50 border-b backdrop-blur">
       <div className="container mx-auto flex h-14 items-center gap-4 px-4">
@@ -28,12 +45,38 @@ export function SiteHeader() {
           >
             Browse
           </Link>
+          {email && (
+            <Link
+              href="/browse/mine"
+              className="hover:text-foreground transition-colors"
+            >
+              My listings
+            </Link>
+          )}
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/auth/login">Sign in</Link>
-          </Button>
+          {email ? (
+            <>
+              {/* The local part is enough to say which account this is, and it
+                  keeps a long address from crowding out the buttons. */}
+              <span
+                className="text-muted-foreground hidden max-w-[14rem] truncate text-sm sm:inline"
+                title={email}
+              >
+                {email.split("@")[0]}
+              </span>
+              <form action={signout}>
+                <Button type="submit" variant="ghost" size="sm">
+                  Sign out
+                </Button>
+              </form>
+            </>
+          ) : (
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/auth/login">Sign in</Link>
+            </Button>
+          )}
           <Button asChild size="sm">
             <Link href="/browse/new">
               <Plus className="size-4" />

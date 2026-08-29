@@ -44,7 +44,7 @@ export default async function ListingPage({
 
         <div className="mt-6 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-3xl font-bold tracking-tight text-balance">
+            <h1 className="text-3xl font-bold tracking-tight text-balance wrap-anywhere">
               {listing.title}
             </h1>
             <p className="text-muted-foreground mt-1.5 text-sm">
@@ -65,7 +65,7 @@ export default async function ListingPage({
           </div>
         </div>
 
-        <p className="mt-6 text-pretty leading-relaxed">
+        <p className="mt-6 text-pretty leading-relaxed wrap-anywhere">
           {listing.description}
         </p>
 

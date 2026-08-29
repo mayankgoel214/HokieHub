@@ -1,7 +1,13 @@
-import Link from 'next/link'
-import { ArrowRight, BadgeCheck, BookOpen, Sofa, GraduationCap } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { listListings } from '@/lib/api'
+import Link from "next/link";
+import {
+  ArrowRight,
+  BadgeCheck,
+  BookOpen,
+  Sofa,
+  GraduationCap,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { listListings } from "@/lib/api";
 
 /**
  * The first thing a visitor sees. Previously this redirected straight to the
@@ -9,9 +15,9 @@ import { listListings } from '@/lib/api'
  * account — and nobody makes an account for something they cannot see.
  */
 export default async function Home() {
-  let liveCount = 0
+  let liveCount = 0;
   try {
-    liveCount = (await listListings({ size: 1 })).totalElements
+    liveCount = (await listListings({ size: 1 })).totalElements;
   } catch {
     // The marketplace copy stands on its own if the API is unreachable.
   }
@@ -30,8 +36,9 @@ export default async function Home() {
           </h1>
 
           <p className="text-muted-foreground mx-auto mt-5 max-w-xl text-lg text-pretty">
-            Textbooks, dorm furniture, monitors, tutoring — traded between students
-            on the same campus, instead of with strangers on Facebook Marketplace.
+            Textbooks, dorm furniture, monitors, tutoring — traded between
+            students on the same campus, instead of with strangers on Facebook
+            Marketplace.
           </p>
 
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -50,7 +57,8 @@ export default async function Home() {
 
           {liveCount > 0 && (
             <p className="text-muted-foreground mt-5 text-sm">
-              {liveCount} {liveCount === 1 ? 'listing' : 'listings'} on the marketplace
+              {liveCount} {liveCount === 1 ? "listing" : "listings"} on the
+              marketplace
             </p>
           )}
         </div>
@@ -61,24 +69,26 @@ export default async function Home() {
           {[
             {
               icon: BookOpen,
-              title: 'Course materials',
-              body: 'Textbooks priced by the students who just finished the class, not the bookstore.',
+              title: "Course materials",
+              body: "Textbooks priced by the students who just finished the class, not the bookstore.",
             },
             {
               icon: Sofa,
-              title: 'Move-out season',
-              body: 'Furniture and appliances that would otherwise go to a dumpster in May.',
+              title: "Move-out season",
+              body: "Furniture and appliances that would otherwise go to a dumpster in May.",
             },
             {
               icon: GraduationCap,
-              title: 'Services, not just stuff',
-              body: 'Tutoring and other help, with subjects, availability and an hourly rate.',
+              title: "Services, not just stuff",
+              body: "Tutoring and other help, with subjects, availability and an hourly rate.",
             },
           ].map(({ icon: Icon, title, body }) => (
             <div key={title} className="min-w-0">
               <Icon className="text-muted-foreground size-6" />
               <h2 className="mt-3 font-semibold">{title}</h2>
-              <p className="text-muted-foreground mt-1.5 text-sm text-pretty">{body}</p>
+              <p className="text-muted-foreground mt-1.5 text-sm text-pretty">
+                {body}
+              </p>
             </div>
           ))}
         </div>
@@ -86,10 +96,10 @@ export default async function Home() {
 
       <footer className="border-t">
         <div className="text-muted-foreground container mx-auto px-4 py-8 text-sm">
-          Every account is verified against an @vt.edu address, so you are trading
-          with someone who is actually on campus.
+          Every account is verified against an @vt.edu address, so you are
+          trading with someone who is actually on campus.
         </div>
       </footer>
     </main>
-  )
+  );
 }

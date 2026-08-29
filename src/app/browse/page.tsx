@@ -141,10 +141,10 @@ export default async function DashboardPage({
                       </div>
                       <Badge>{listing.status}</Badge>
                     </div>
-                    <CardTitle className="line-clamp-2 text-xl">
+                    <CardTitle className="line-clamp-2 text-xl wrap-anywhere">
                       {listing.title}
                     </CardTitle>
-                    <CardDescription className="line-clamp-3 text-base">
+                    <CardDescription className="line-clamp-3 text-base wrap-anywhere">
                       {listing.description}
                     </CardDescription>
                   </CardHeader>

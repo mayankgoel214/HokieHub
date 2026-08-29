@@ -36,7 +36,7 @@ export async function login(formData: FormData) {
   }
 
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect("/browse");
 }
 
 export async function signup(formData: FormData) {
@@ -53,7 +53,7 @@ export async function signup(formData: FormData) {
     return { error: "Please use your Virginia Tech email (@vt.edu)" };
   }
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -68,7 +68,17 @@ export async function signup(formData: FormData) {
     return { error: error.message };
   }
 
-  return { success: "Check your email to confirm your account!" };
+  // Whether a session comes back depends on the project's "Confirm email"
+  // setting, and this used to ignore that: it always told the new account to go
+  // and check their email. With confirmation off, Supabase signs them in on the
+  // spot, so that message sent every new user to wait for mail that would never
+  // arrive — while they were, in fact, already signed in.
+  if (data.session) {
+    revalidatePath("/", "layout");
+    redirect("/browse");
+  }
+
+  return { success: "Check your email to confirm your account." };
 }
 
 export async function signout() {
