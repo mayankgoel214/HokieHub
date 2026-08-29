@@ -7,6 +7,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
@@ -93,16 +94,37 @@ public class SecurityConfig {
                   + "cannot tell a real session from a forged one. Set it before starting.");
         }
 
-        String base = supabaseUrl.replaceAll("/+$", "");
-        String issuer = base + "/auth/v1";
+        String issuer = supabaseUrl.replaceAll("/+$", "") + "/auth/v1";
+        return decoderFor(issuer);
+    }
+
+    /**
+     * Package-private so a test can point it at a JWKS it controls and assert on
+     * real signature verification. The mock JWT used elsewhere in the suite
+     * bypasses the decoder entirely, so nothing else covers this path.
+     */
+    static JwtDecoder decoderFor(String issuer) {
 
         // Supabase signs project JWTs with an asymmetric key (ES256) and publishes
         // the public half at the project's JWKS endpoint. Verifying against that is
         // both what actually works and strictly safer than the legacy HS256 shared
         // secret: there is no secret to store on the API host, and rotating the
         // signing key needs no redeploy here.
+        // The algorithms have to be named. NimbusJwtDecoder defaults to expecting
+        // RS256, and Supabase signs with ES256, which fails as "Another algorithm
+        // expected, or no matching key(s) found" — a true statement that does not
+        // say which algorithm. Both asymmetric families are accepted so a project
+        // that rotates to an RSA signing key keeps working.
+        //
+        // HS256 is deliberately absent: accepting a symmetric algorithm alongside
+        // a published public key is the algorithm-confusion attack, where the
+        // public key everyone can read becomes the shared secret.
         NimbusJwtDecoder decoder = NimbusJwtDecoder
                 .withJwkSetUri(issuer + "/.well-known/jwks.json")
+                .jwsAlgorithms(algorithms -> {
+                    algorithms.add(SignatureAlgorithm.ES256);
+                    algorithms.add(SignatureAlgorithm.RS256);
+                })
                 .build();
 
         // A signature check alone would accept a correctly signed token from a
