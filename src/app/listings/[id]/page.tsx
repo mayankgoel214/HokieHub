@@ -8,10 +8,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { ListingCover } from "@/components/listing-cover";
 import { DefectList } from "@/components/defect-list";
 import { relativeTime } from "@/lib/time";
-import { ApiError, getListing, listBids } from "@/lib/api";
+import {
+  ApiError,
+  getListing,
+  getPriceCheck,
+  listBids,
+  priceCheckStatus,
+} from "@/lib/api";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import type { Bid, Listing } from "@/types/api";
+import { PriceCheckPanel } from "@/components/price-check-panel";
+import type {
+  Bid,
+  Listing,
+  PriceCheck,
+  PriceCheckStatusInfo,
+} from "@/types/api";
 import { retractBid, submitBid, takeOffer } from "./bid-actions";
 
 /**
@@ -43,6 +55,7 @@ export default async function ListingPage({
   // Who is looking decides what they can do: the seller sees the offers, a
   // signed-in stranger can make one, a visitor is invited to sign in.
   let viewerId: string | null = null;
+  let accessToken: string | null = null;
   let offers: Bid[] = [];
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
@@ -50,6 +63,7 @@ export default async function ListingPage({
       data: { session },
     } = await supabase.auth.getSession();
     viewerId = session?.user?.id ?? null;
+    accessToken = session?.access_token ?? null;
 
     if (session && listing.seller.id === viewerId) {
       try {
@@ -58,6 +72,22 @@ export default async function ListingPage({
         offers = [];
       }
     }
+  }
+
+  // The price check: whether it exists here, whether this viewer has bought it,
+  // and if so the analysis itself. Fetched server-side so an unbought analysis
+  // never reaches the browser at all.
+  let pcStatus: PriceCheckStatusInfo | null = null;
+  let priceCheck: PriceCheck | null = null;
+  try {
+    pcStatus = await priceCheckStatus(id, accessToken ?? undefined);
+    if (pcStatus.unlocked && listing.seller.id !== viewerId && accessToken) {
+      priceCheck = await getPriceCheck(id, accessToken);
+    }
+  } catch {
+    // A price check that cannot be reached must not take the listing down with
+    // it; the panel simply does not appear.
+    pcStatus = null;
   }
 
   const isSeller = viewerId !== null && viewerId === listing.seller.id;
@@ -86,7 +116,9 @@ export default async function ListingPage({
               ? "Offer accepted. The listing is on hold and the other bidders have been declined — arrange the handover with the buyer below."
               : done === "withdrawn"
                 ? "Your offer has been withdrawn."
-                : "Your offer has been sent to the seller."}
+                : done === "unlocked"
+                  ? "Price check unlocked. Nothing was charged."
+                  : "Your offer has been sent to the seller."}
           </div>
         )}
 
@@ -273,6 +305,15 @@ export default async function ListingPage({
                 </Button>
               </div>
             </div>
+
+            <PriceCheckPanel
+              listingId={listing.id}
+              askingPrice={Number(listing.price)}
+              isSeller={isSeller}
+              signedIn={viewerId !== null}
+              status={pcStatus}
+              check={priceCheck}
+            />
 
             {isSeller && (
               <div className="rounded-xl border p-5">

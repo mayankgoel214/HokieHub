@@ -1,5 +1,7 @@
 import type {
   Bid,
+  PriceCheck,
+  PriceCheckStatusInfo,
   BidSummary,
   Category,
   CreateListingBody,
@@ -160,6 +162,27 @@ export function acceptBid(
 
 export function bidSummary(listingId: string): Promise<BidSummary> {
   return request<BidSummary>(`/api/listings/${listingId}/bids/summary`)
+}
+
+export function priceCheckStatus(
+  listingId: string,
+  token?: string
+): Promise<PriceCheckStatusInfo> {
+  return request<PriceCheckStatusInfo>(
+    `/api/listings/${listingId}/price-check/status`,
+    { token }
+  )
+}
+
+export function unlockPriceCheck(listingId: string, token: string): Promise<void> {
+  return request<void>(`/api/listings/${listingId}/price-check/unlock`, {
+    method: 'POST',
+    token,
+  })
+}
+
+export function getPriceCheck(listingId: string, token: string): Promise<PriceCheck> {
+  return request<PriceCheck>(`/api/listings/${listingId}/price-check`, { token })
 }
 
 export function myListings(

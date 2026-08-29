@@ -59,6 +59,37 @@ export interface Bid {
   updatedAt: string
 }
 
+export type PriceCheckStatus = "ready" | "no_comparables" | "failed";
+
+export interface PriceCheckSource {
+  title: string;
+  url: string | null;
+  price: number | null;
+  note: string | null;
+}
+
+export interface PriceCheck {
+  status: PriceCheckStatus;
+  identifiedItem: string | null;
+  estimatedLow: number | null;
+  estimatedTypical: number | null;
+  estimatedHigh: number | null;
+  verdict: "below_market" | "fair" | "above_market" | null;
+  summary: string | null;
+  failureReason: string | null;
+  /** True only when Google Search actually returned results behind the estimate. */
+  grounded: boolean;
+  model: string | null;
+  sources: PriceCheckSource[];
+  createdAt: string;
+}
+
+export interface PriceCheckStatusInfo {
+  available: boolean;
+  priceCents: number;
+  unlocked: boolean;
+}
+
 export interface Listing {
   id: string;
   seller: SellerSummary;
