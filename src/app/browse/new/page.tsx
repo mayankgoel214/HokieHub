@@ -26,6 +26,7 @@ import { createListing, listCategories, ApiError } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 import type {
   Category,
+  DefectInput,
   CreateListingBody,
   ItemCondition,
   ListingType,
@@ -44,6 +45,10 @@ export default function CreateListingPage() {
   // thirty-two, and the ids did not line up with any of them: choosing
   // "Electronics" filed the listing under Textbooks. They come from the API now,
   // which is where the category tree actually lives.
+  // Faults the seller declares. Kept as its own bit of state rather than folded
+  // into formData because the shape is a list the user edits row by row.
+  const [defects, setDefects] = useState<DefectInput[]>([]);
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoriesFailed, setCategoriesFailed] = useState(false);
 
@@ -70,7 +75,13 @@ export default function CreateListingPage() {
         throw new Error("Your session has expired. Please sign in again.");
       }
 
-      await createListing(formData as CreateListingBody, session.access_token);
+      await createListing(
+        {
+          ...(formData as CreateListingBody),
+          defects: defects.filter((d) => d.description.trim() !== ""),
+        },
+        session.access_token,
+      );
       router.push("/browse");
       router.refresh();
     } catch (err) {
@@ -252,6 +263,82 @@ export default function CreateListingPage() {
                     The category list could not be loaded, so a listing cannot
                     be filed correctly. Reload the page to try again.
                   </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>What is wrong with it?</Label>
+                <p className="text-muted-foreground text-sm">
+                  Say it here and a buyer will not find out on arrival. Leave it
+                  empty if there is genuinely nothing.
+                </p>
+
+                {defects.map((defect, i) => (
+                  <div key={i} className="flex gap-2">
+                    <Input
+                      value={defect.description}
+                      maxLength={200}
+                      placeholder="e.g. Scratch on the lid"
+                      onChange={(e) =>
+                        setDefects(
+                          defects.map((d, j) =>
+                            j === i ? { ...d, description: e.target.value } : d,
+                          ),
+                        )
+                      }
+                    />
+                    <Select
+                      value={defect.severity}
+                      onValueChange={(value) =>
+                        setDefects(
+                          defects.map((d, j) =>
+                            j === i
+                              ? {
+                                  ...d,
+                                  severity: value as DefectInput["severity"],
+                                }
+                              : d,
+                          ),
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-36">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="minor">Minor</SelectItem>
+                        <SelectItem value="moderate">Moderate</SelectItem>
+                        <SelectItem value="major">Major</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Remove this fault"
+                      onClick={() =>
+                        setDefects(defects.filter((_, j) => j !== i))
+                      }
+                    >
+                      &times;
+                    </Button>
+                  </div>
+                ))}
+
+                {defects.length < 10 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setDefects([
+                        ...defects,
+                        { description: "", severity: "minor" },
+                      ])
+                    }
+                  >
+                    Add a fault
+                  </Button>
                 )}
               </div>
 

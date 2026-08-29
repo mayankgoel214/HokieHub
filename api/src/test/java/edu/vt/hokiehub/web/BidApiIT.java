@@ -174,6 +174,25 @@ class BidApiIT {
     }
 
     @Test
+    @DisplayName("the accepted offer stays on the seller's list, so they keep the buyer's details")
+    void acceptedOfferRemainsVisible() throws Exception {
+        String placed = bid(BUYER, "180.00").andReturn().getResponse().getContentAsString();
+        String bidId = json.readTree(placed).get("id").asText();
+        bid(RIVAL, "150.00");
+
+        mvc.perform(post("/api/listings/" + listingId + "/bids/" + bidId + "/accept")
+                .with(jwt().jwt(j -> j.subject(SELLER)))).andExpect(status().isOk());
+
+        // The winner is still there and still named; the declined one is gone.
+        mvc.perform(get("/api/listings/" + listingId + "/bids")
+                        .with(jwt().jwt(j -> j.subject(SELLER))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].status").value("accepted"))
+                .andExpect(jsonPath("$[0].bidder.email").value("buyer@vt.edu"));
+    }
+
+    @Test
     @DisplayName("a stranger cannot accept an offer on someone else's listing")
     void onlySellerAccepts() throws Exception {
         String placed = bid(BUYER, "180.00").andReturn().getResponse().getContentAsString();

@@ -1,16 +1,8 @@
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
+import { ListingCard } from "@/components/listing-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { listListings } from "@/lib/api";
 import type { Listing } from "@/types/api";
 
@@ -120,63 +112,12 @@ export default async function DashboardPage({
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {listings.map((listing) => (
-              <Link
+            {listings.map((listing, i) => (
+              <ListingCard
                 key={listing.id}
-                href={`/listings/${listing.id}`}
-                className="focus-visible:ring-ring rounded-xl focus-visible:ring-2 focus-visible:outline-none"
-              >
-                <Card className="flex h-full flex-col transition-shadow hover:shadow-md">
-                  <CardHeader>
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-sm font-semibold">
-                          ${Number(listing.price).toFixed(2)}
-                        </span>
-                        {listing.listingType === "service" && (
-                          <span className="text-muted-foreground text-xs">
-                            /hr
-                          </span>
-                        )}
-                      </div>
-                      <Badge>{listing.status}</Badge>
-                    </div>
-                    <CardTitle className="line-clamp-2 text-xl wrap-anywhere">
-                      {listing.title}
-                    </CardTitle>
-                    <CardDescription className="line-clamp-3 text-base wrap-anywhere">
-                      {listing.description}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-1">
-                    <div className="space-y-2">
-                      {listing.condition && (
-                        <div className="text-sm">
-                          <span className="text-muted-foreground">
-                            Condition:
-                          </span>{" "}
-                          <span className="font-medium capitalize">
-                            {listing.condition.replace("_", " ")}
-                          </span>
-                        </div>
-                      )}
-                      {listing.location && (
-                        <div className="text-muted-foreground text-sm">
-                          {listing.location}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                  <CardFooter className="border-t">
-                    <div className="flex w-full items-center justify-between text-xs text-muted-foreground">
-                      <span>{listing.viewsCount} views</span>
-                      <span>
-                        {new Date(listing.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </CardFooter>
-                </Card>
-              </Link>
+                listing={listing}
+                priority={i < 4}
+              />
             ))}
           </div>
         )}

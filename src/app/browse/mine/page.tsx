@@ -2,14 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { ListingCard } from "@/components/listing-card";
 import { myListings } from "@/lib/api";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -98,43 +91,9 @@ export default async function MyListingsPage({
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {listings.map((listing) => (
-              <Card key={listing.id} className="flex flex-col">
-                <CardHeader>
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <span className="text-sm font-semibold">
-                      ${Number(listing.price).toFixed(2)}
-                      {listing.listingType === "service" && (
-                        <span className="text-muted-foreground text-xs">
-                          {" "}
-                          /hr
-                        </span>
-                      )}
-                    </span>
-                    <Badge
-                      variant={
-                        listing.status === "available" ? "default" : "secondary"
-                      }
-                    >
-                      {listing.status}
-                    </Badge>
-                  </div>
-                  <CardTitle className="text-lg wrap-anywhere">
-                    <Link
-                      href={`/listings/${listing.id}`}
-                      className="hover:underline"
-                    >
-                      {listing.title}
-                    </Link>
-                  </CardTitle>
-                </CardHeader>
-
-                <CardContent className="flex-1">
-                  <p className="text-muted-foreground text-sm">
-                    {listing.category.name} · {listing.viewsCount} views
-                  </p>
-                </CardContent>
-
-                <CardFooter className="gap-2 border-t">
+              <div key={listing.id} className="flex flex-col gap-2">
+                <ListingCard listing={listing} />
+                <div className="flex gap-2">
                   {listing.status === "available" ? (
                     <form action={markSold} className="flex-1">
                       <input type="hidden" name="id" value={listing.id} />
@@ -166,8 +125,8 @@ export default async function MyListingsPage({
                       Delete
                     </Button>
                   </form>
-                </CardFooter>
-              </Card>
+                </div>
+              </div>
             ))}
           </div>
         )}

@@ -1,4 +1,6 @@
 import type {
+  Bid,
+  BidSummary,
   Category,
   CreateListingBody,
   Listing,
@@ -119,6 +121,45 @@ export function updateListing(
 
 export function deleteListing(id: string, token: string): Promise<void> {
   return request<void>(`/api/listings/${id}`, { method: "DELETE", token });
+}
+
+export function placeBid(
+  listingId: string,
+  body: { amount: number; message?: string },
+  token: string
+): Promise<Bid> {
+  return request<Bid>(`/api/listings/${listingId}/bids`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+    token,
+  })
+}
+
+export function withdrawBid(listingId: string, token: string): Promise<void> {
+  return request<void>(`/api/listings/${listingId}/bids`, {
+    method: 'DELETE',
+    token,
+  })
+}
+
+/** Seller only. Everyone else gets the count via the listing itself. */
+export function listBids(listingId: string, token: string): Promise<Bid[]> {
+  return request<Bid[]>(`/api/listings/${listingId}/bids`, { token })
+}
+
+export function acceptBid(
+  listingId: string,
+  bidId: string,
+  token: string
+): Promise<Bid> {
+  return request<Bid>(`/api/listings/${listingId}/bids/${bidId}/accept`, {
+    method: 'POST',
+    token,
+  })
+}
+
+export function bidSummary(listingId: string): Promise<BidSummary> {
+  return request<BidSummary>(`/api/listings/${listingId}/bids/summary`)
 }
 
 export function myListings(

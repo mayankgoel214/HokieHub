@@ -88,7 +88,8 @@ public class BidService {
         if (!listing.isOwnedBy(userId)) {
             throw new ForbiddenException("Only the seller can see the offers on a listing");
         }
-        return bids.findByListingIdAndStatusOrderByAmountDesc(listingId, BidStatus.ACTIVE);
+        return bids.findByListingIdAndStatusInOrderByAmountDesc(
+                listingId, List.of(BidStatus.ACTIVE, BidStatus.ACCEPTED));
     }
 
     @Transactional(readOnly = true)

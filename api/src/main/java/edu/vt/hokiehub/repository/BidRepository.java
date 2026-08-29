@@ -16,9 +16,16 @@ import java.util.UUID;
 
 public interface BidRepository extends JpaRepository<Bid, UUID> {
 
-    /** The seller's view: strongest offer first, bidder resolved in the same query. */
+    /**
+     * The seller's view: strongest offer first, bidder resolved in the same query.
+     *
+     * Takes a set of statuses rather than one, because an accepted offer has to
+     * stay on the page. Filtering to active alone made the winning bid vanish at
+     * the moment of accepting it, taking the buyer's name and address with it —
+     * exactly when the seller needs them to arrange the handover.
+     */
     @EntityGraph(attributePaths = {"bidder"})
-    List<Bid> findByListingIdAndStatusOrderByAmountDesc(UUID listingId, BidStatus status);
+    List<Bid> findByListingIdAndStatusInOrderByAmountDesc(UUID listingId, Collection<BidStatus> statuses);
 
     Optional<Bid> findByListingIdAndBidderId(UUID listingId, String bidderId);
 

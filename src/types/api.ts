@@ -35,6 +35,30 @@ export interface ServiceDetails {
   experienceLevel: string | null;
 }
 
+export type DefectSeverity = 'minor' | 'moderate' | 'major'
+
+export interface Defect {
+  id: number
+  description: string
+  severity: DefectSeverity
+}
+
+/** How much interest a listing has, without saying who from. */
+export interface BidSummary {
+  count: number
+  highest: number | null
+}
+
+export interface Bid {
+  id: string
+  bidder: SellerSummary
+  amount: number
+  message: string | null
+  status: 'active' | 'withdrawn' | 'accepted' | 'declined'
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Listing {
   id: string;
   seller: SellerSummary;
@@ -49,6 +73,9 @@ export interface Listing {
   viewsCount: number;
   serviceDetails: ServiceDetails | null;
   images: ListingImage[];
+  primaryImageUrl: string | null;
+  defects: Defect[];
+  bids: BidSummary;
   createdAt: string;
   updatedAt: string;
   expiresAt: string | null;
@@ -73,6 +100,11 @@ export interface Category {
   children: Category[];
 }
 
+export interface DefectInput {
+  description: string
+  severity: DefectSeverity
+}
+
 export interface CreateListingBody {
   categoryId: number;
   title: string;
@@ -82,6 +114,8 @@ export interface CreateListingBody {
   listingType: ListingType;
   location?: string;
   expiresAt?: string;
+  images?: { imageUrl: string; isPrimary?: boolean; displayOrder?: number }[];
+  defects?: DefectInput[];
 }
 
 /** RFC 7807 problem+json, which is what the API returns for every error. */
