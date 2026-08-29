@@ -164,6 +164,37 @@ export function bidSummary(listingId: string): Promise<BidSummary> {
   return request<BidSummary>(`/api/listings/${listingId}/bids/summary`)
 }
 
+/**
+ * Uploads a photograph. Multipart, so this bypasses the JSON `request` helper
+ * above — setting Content-Type by hand on a FormData body would strip the
+ * multipart boundary the browser generates, and the upload would arrive
+ * unparseable.
+ */
+export async function uploadListingImage(
+  listingId: string,
+  file: File,
+  token: string
+): Promise<{ id: number; url: string; isPrimary: boolean }> {
+  const body = new FormData()
+  body.append('file', file)
+
+  const response = await fetch(`${API_URL}/api/listings/${listingId}/images`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body,
+  })
+
+  const parsed = await response.json().catch(() => null)
+  if (!response.ok) {
+    const problem = parsed as ProblemDetail | null
+    throw new ApiError(
+      problem?.detail ?? `Upload failed (${response.status})`,
+      response.status
+    )
+  }
+  return parsed
+}
+
 export function priceCheckStatus(
   listingId: string,
   token?: string

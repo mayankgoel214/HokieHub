@@ -22,7 +22,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { createListing, listCategories, ApiError } from "@/lib/api";
+import {
+  createListing,
+  listCategories,
+  uploadListingImage,
+  ApiError,
+} from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 import type {
   Category,
@@ -48,6 +53,12 @@ export default function CreateListingPage() {
   // Faults the seller declares. Kept as its own bit of state rather than folded
   // into formData because the shape is a list the user edits row by row.
   const [defects, setDefects] = useState<DefectInput[]>([]);
+
+  // Photographs, held until the listing exists — an image needs a listing id to
+  // attach to, so they are uploaded immediately after it is created.
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const [uploadNote, setUploadNote] = useState<string | null>(null);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoriesFailed, setCategoriesFailed] = useState(false);
@@ -75,14 +86,38 @@ export default function CreateListingPage() {
         throw new Error("Your session has expired. Please sign in again.");
       }
 
-      await createListing(
+      const created = await createListing(
         {
           ...(formData as CreateListingBody),
           defects: defects.filter((d) => d.description.trim() !== ""),
         },
         session.access_token,
       );
-      router.push("/browse");
+
+      // The listing is already saved by this point. A photograph that fails to
+      // upload must not read as a failed listing, so these are reported and the
+      // seller still lands on their listing rather than back on a form that has
+      // already been submitted.
+      const failures: string[] = [];
+      for (const photo of photos) {
+        try {
+          await uploadListingImage(created.id, photo, session.access_token);
+        } catch (uploadError) {
+          failures.push(
+            uploadError instanceof Error ? uploadError.message : photo.name,
+          );
+        }
+      }
+
+      if (failures.length > 0) {
+        setError(
+          `The listing was posted, but ${failures.length} photograph(s) did not upload: ${failures[0]}`,
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
+      router.push(`/listings/${created.id}`);
       router.refresh();
     } catch (err) {
       // ApiError already carries the API's own message, including the first
@@ -267,6 +302,64 @@ export default function CreateListingPage() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="photos">Photographs</Label>
+                <p className="text-muted-foreground text-sm">
+                  Up to five, 2 MB each. A buyer can pay to have these read
+                  against comparable listings, so a clear photograph is worth
+                  more than a good description.
+                </p>
+                <Input
+                  id="photos"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={(event) => {
+                    const chosen = Array.from(event.target.files ?? []);
+                    const tooBig = chosen.filter(
+                      (f) => f.size > 2 * 1024 * 1024,
+                    );
+                    const usable = chosen
+                      .filter((f) => f.size <= 2 * 1024 * 1024)
+                      .slice(0, 5);
+
+                    // Said here rather than after a failed round trip: the API
+                    // enforces the same limits, but finding out at submit time
+                    // is a worse way to learn them.
+                    setUploadNote(
+                      tooBig.length > 0
+                        ? `${tooBig.length} file(s) were over 2 MB and were left out.`
+                        : chosen.length > 5
+                          ? "Only the first five were kept."
+                          : null,
+                    );
+
+                    previews.forEach(URL.revokeObjectURL);
+                    setPhotos(usable);
+                    setPreviews(usable.map((f) => URL.createObjectURL(f)));
+                  }}
+                />
+                {uploadNote && (
+                  <p className="text-destructive text-sm">{uploadNote}</p>
+                )}
+                {previews.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {previews.map((src, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={src}
+                        src={src}
+                        alt={`Photograph ${i + 1}`}
+                        className="size-20 rounded-md border object-cover"
+                      />
+                    ))}
+                    <p className="text-muted-foreground self-end text-xs">
+                      The first is the card image.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
                 <Label>What is wrong with it?</Label>
                 <p className="text-muted-foreground text-sm">
                   Say it here and a buyer will not find out on arrival. Leave it
@@ -348,7 +441,11 @@ export default function CreateListingPage() {
                   disabled={isSubmitting || !formData.categoryId}
                   className="flex-1"
                 >
-                  {isSubmitting ? "Creating..." : "Create Listing"}
+                  {isSubmitting
+                    ? photos.length > 0
+                      ? "Posting and uploading…"
+                      : "Posting…"
+                    : "Create Listing"}
                 </Button>
                 <Link href="/browse" className="flex-1">
                   <Button type="button" variant="outline" className="w-full">
