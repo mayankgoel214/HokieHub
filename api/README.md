@@ -63,6 +63,18 @@ Flyway runs on first boot, so the schema and the seeded categories are applied
 without a manual step. The web client then needs `NEXT_PUBLIC_API_URL` pointed
 at the deployed API.
 
+## Deploying
+
+```bash
+scripts/deploy-api.sh
+```
+
+Railway's own builder fails on this project before emitting a line of build
+output, on every source and in every region, so CI publishes the image to
+`ghcr.io/mayankgoel214/hokiehub-api:<sha>` and Railway runs the tag. The script
+waits for the tag to actually be pullable before telling Railway to pull it —
+deploying the moment CI reports success races the registry, and the pull 404s.
+
 ## Design notes
 
 **Why a separate service.** The Next.js API routes ran raw SQL against a

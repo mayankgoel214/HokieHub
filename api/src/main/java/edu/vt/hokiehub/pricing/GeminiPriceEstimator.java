@@ -86,17 +86,84 @@ public class GeminiPriceEstimator {
         public record Comparable(String title, String url, BigDecimal price, String note) {}
     }
 
+    /**
+     * Two calls, not one: retrieve, then structure.
+     *
+     * Asked to value an item and reply as JSON, the model simply does not search
+     * — measured, repeatedly: zero searches run, zero grounding chunks returned,
+     * and four confidently invented "comparables" in the reply. Asked instead to
+     * go and look up what something is selling for, it runs a handful of searches
+     * and comes back with real listings. The schema was suppressing the tool use.
+     *
+     * So the first call does the looking and is allowed to answer in prose, and
+     * the second turns what it found into the shape this service stores. The
+     * second call has no tools and is told to use nothing but the findings it is
+     * handed, so it cannot quietly add a comparable of its own.
+     */
     public Estimate estimate(Listing listing, List<ListingImage> photos) {
         if (!isConfigured()) {
             throw new PriceCheckUnavailableException(
                     "The price check is not configured on this deployment.");
         }
 
-        List<Map<String, Object>> parts = new ArrayList<>();
-        parts.add(Map.of("text", prompt(listing)));
+        JsonNode research = call(searchBody(listing, photos));
+        String findings = extractText(research);
+        int sources = groundingSources(research);
 
-        // Photographs first-class, not described: the whole point is that the model
-        // looks at the item rather than trusting a seller's title.
+        if (sources == 0 || findings == null || findings.isBlank()) {
+            // Nothing was actually retrieved. Whatever the model may be willing to
+            // say about the price, there is nothing behind it.
+            log.info("No grounding sources for listing {}; reporting no comparables",
+                    listing.getId());
+            return new Estimate(null, null, null, null, null, List.of());
+        }
+
+        JsonNode structured = call(structureBody(listing, findings));
+        String text = extractText(structured);
+        if (text == null || text.isBlank()) {
+            throw new PriceCheckFailedException("The valuation service returned nothing.");
+        }
+
+        return parse(text);
+    }
+
+    private JsonNode call(Map<String, Object> body) {
+        try {
+            return http.post()
+                    .uri(ENDPOINT + "?key=" + apiKey)
+                    .header("Content-Type", "application/json")
+                    .body(body)
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (RuntimeException e) {
+            log.warn("Gemini call failed: {}", e.toString());
+            throw new PriceCheckFailedException("The valuation service did not respond.");
+        }
+    }
+
+    /** Stage one: go and look, in the shape of question that makes it look. */
+    private Map<String, Object> searchBody(Listing listing, List<ListingImage> photos) {
+        List<Map<String, Object>> parts = new ArrayList<>();
+        parts.add(Map.of("text", """
+               Search eBay, Swappa, Facebook Marketplace and Google Shopping for what
+               this used item is currently listed or recently sold for, and tell me
+               what you find. Include the price and the link for each result.
+
+               The item: %s
+               Described by the seller as: %s
+               Condition the seller claims: %s
+
+               %sIf the photographs show something different from the description, say
+               so. If you cannot find any comparable used listings, say that plainly
+               rather than estimating.
+               """.formatted(
+                listing.getTitle(),
+                listing.getDescription(),
+                listing.getCondition() == null ? "not stated" : listing.getCondition().value(),
+                photos.isEmpty()
+                        ? "There are no photographs of this particular item. "
+                        : "Photographs of the actual item are attached — identify it from those. ")));
+
         for (ListingImage photo : photos) {
             if (photo.getData() == null) continue;
             parts.add(Map.of("inline_data", Map.of(
@@ -104,97 +171,45 @@ public class GeminiPriceEstimator {
                     "data", Base64.getEncoder().encodeToString(photo.getData()))));
         }
 
-        Map<String, Object> body = Map.of(
+        return Map.of(
                 "contents", List.of(Map.of("role", "user", "parts", parts)),
-                // Grounding is the feature. Without it this is a language model
-                // reciting plausible numbers.
                 "tools", List.of(Map.of("google_search", Map.of())),
-                "generationConfig", Map.of(
-                        // Low, because this is an extraction task and not a creative one.
-                        "temperature", 0.2,
-                        // A grounded reply carries the comparables it found and
-                        // runs long. At 2048 it was being cut off mid-object, and
-                        // the truncated JSON failed to parse — which surfaced as
-                        // "the valuation service returned an unreadable answer"
-                        // rather than as a limit being hit.
-                        "maxOutputTokens", 8192));
-
-        JsonNode response;
-        try {
-            response = http.post()
-                    .uri(ENDPOINT + "?key=" + apiKey)
-                    .header("Content-Type", "application/json")
-                    .body(body)
-                    .retrieve()
-                    .body(JsonNode.class);
-        } catch (RuntimeException e) {
-            log.warn("Gemini call failed for listing {}: {}", listing.getId(), e.toString());
-            throw new PriceCheckFailedException("The valuation service did not respond.");
-        }
-
-        String text = extractText(response);
-        if (text == null || text.isBlank()) {
-            throw new PriceCheckFailedException("The valuation service returned nothing.");
-        }
-
-        Estimate parsed = parse(text);
-
-        // The model lists its comparables in the JSON, but the grounding metadata
-        // is the API's own record of what search actually returned. If that record
-        // is empty then nothing was retrieved, whatever the model wrote — so the
-        // estimate has nothing behind it and must not be published as though it
-        // has. This is the check that makes "grounded" mean something.
-        if (groundingSources(response) == 0) {
-            log.info("No grounding sources returned; treating as no comparables");
-            return new Estimate(parsed.identifiedItem(), null, null, null,
-                    parsed.summary(), List.of());
-        }
-
-        return parsed;
+                "generationConfig", Map.of("temperature", 0.2, "maxOutputTokens", 8192));
     }
 
-    private String prompt(Listing listing) {
-        return """
-               You are valuing a second-hand item for a student marketplace at Virginia Tech.
+    /** Stage two: turn what was found into the stored shape. No tools, no additions. */
+    private Map<String, Object> structureBody(Listing listing, String findings) {
+        String text = """
+               Here is research on what a used item is selling for:
 
-               Use Google Search to find what comparable used examples of this item have
-               recently sold or been listed for. Base the estimate on what you find.
+               ---
+               %s
+               ---
 
-               The seller says:
-                 Title:       %s
-                 Description: %s
-                 Condition:   %s
-                 Category:    %s
-                 Asking:      $%s
+               The seller is asking $%s for it.
 
-               Treat the seller's words as a claim, not a fact. The photographs are the
-               evidence — if they disagree with the title, say so in the summary.
-
-               Reply with JSON only, no code fence, exactly this shape:
+               Turn that research into JSON. Reply with JSON only, no code fence:
                {
-                 "identified_item": "what the item actually is, make and model if visible",
+                 "identified_item": "what the item actually is, make and model",
                  "estimated_low": number,
                  "estimated_typical": number,
                  "estimated_high": number,
-                 "summary": "two or three sentences a buyer would find useful, including \
-               anything the photographs show that the description does not mention",
+                 "summary": "two or three sentences a buyer would find useful",
                  "comparables": [
                    {"title": "...", "url": "...", "price": number, "note": "condition or source"}
                  ]
                }
 
-               Rules you must follow:
-               - comparables must be real results you found. Never invent one.
-               - If you cannot find comparable used prices, return "comparables": [] and
-                 set the three estimate fields to null. An empty answer is correct and
-                 useful; a guessed price is neither.
-               - Prices are US dollars, numbers only, no currency symbols.
-               """.formatted(
-                listing.getTitle(),
-                listing.getDescription(),
-                listing.getCondition() == null ? "not stated" : listing.getCondition().value(),
-                listing.getCategory().getName(),
-                listing.getPrice());
+               Use nothing but the research above. Every comparable must appear in it —
+               do not add one from your own knowledge, and do not invent a URL. If the
+               research found no comparable listings, return "comparables": [] and null
+               for the three estimates.
+               """.formatted(findings, listing.getPrice());
+
+        return Map.of(
+                "contents", List.of(Map.of("role", "user",
+                        "parts", List.of(Map.of("text", text)))),
+                "generationConfig", Map.of("temperature", 0.1, "maxOutputTokens", 8192));
     }
 
     /** How many results Google Search actually returned for this call. */
