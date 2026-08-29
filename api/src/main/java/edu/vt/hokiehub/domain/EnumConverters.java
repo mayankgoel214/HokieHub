@@ -76,4 +76,30 @@ public final class EnumConverters {
             return dbData == null ? null : DefectSeverity.from(dbData);
         }
     }
+
+    @Converter(autoApply = true)
+    public static class PriceCheckStatusConverter
+            implements AttributeConverter<PriceCheck.Status, String> {
+        @Override
+        public String convertToDatabaseColumn(PriceCheck.Status a) {
+            return a == null ? null : a.value();
+        }
+        @Override
+        public PriceCheck.Status convertToEntityAttribute(String v) {
+            return v == null ? null : PriceCheck.Status.from(v);
+        }
+    }
+
+    @Converter(autoApply = true)
+    public static class PriceCheckVerdictConverter
+            implements AttributeConverter<PriceCheck.Verdict, String> {
+        @Override
+        public String convertToDatabaseColumn(PriceCheck.Verdict a) {
+            return a == null ? null : a.value();
+        }
+        @Override
+        public PriceCheck.Verdict convertToEntityAttribute(String v) {
+            return v == null ? null : PriceCheck.Verdict.from(v);
+        }
+    }
 }

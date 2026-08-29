@@ -52,6 +52,10 @@ hokiehub:
     url: ${SUPABASE_URL:}
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
+  gemini:
+    # Absent by default. The price check then reports itself unavailable rather
+    # than answering with a number nothing stands behind.
+    api-key: ${GEMINI_API_KEY:}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
 

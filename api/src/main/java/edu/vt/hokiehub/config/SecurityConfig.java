@@ -67,6 +67,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/categories").permitAll()
                 // Photographs are part of a public listing.
                 .requestMatchers(HttpMethod.GET, "/api/images/*").permitAll()
+                // Whether the feature exists and what it costs is public; the
+                // analysis behind it is not.
+                .requestMatchers(HttpMethod.GET, "/api/listings/*/price-check/status").permitAll()
                 .requestMatchers("/actuator/health/**", "/v3/api-docs/**", "/swagger-ui/**",
                                  "/swagger-ui.html").permitAll()
                 .anyRequest().authenticated())
