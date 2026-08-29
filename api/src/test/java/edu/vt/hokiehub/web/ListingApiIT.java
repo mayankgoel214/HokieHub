@@ -293,6 +293,22 @@ class ListingApiIT {
     }
 
     @Test
+    @DisplayName("keyword search matches the category a listing is filed under")
+    void searchMatchesCategoryName() throws Exception {
+        // 13 is Engineering, under Textbooks. Neither word appears in the listing.
+        createListing(OWNER, "Hibbeler 6th ed", "20.00", 13, "Solutions included");
+
+        mvc.perform(get("/api/listings").param("q", "engineering"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1));
+
+        // The parent counts too: filed under Engineering, found by "textbooks".
+        mvc.perform(get("/api/listings").param("q", "textbooks"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
     @DisplayName("a blank q is not a filter and returns everything")
     void blankSearchIsNotAFilter() throws Exception {
         createListing(OWNER, "One", "10.00");

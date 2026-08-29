@@ -44,8 +44,12 @@ public interface ListingRepository extends JpaRepository<Listing, UUID> {
      * on `parent` quietly excluding the listings filed directly under a top-level
      * category, which have no parent.
      *
-     * `q` matches title or description, case-insensitively; the caller passes it
-     * already lowercased and wrapped in wildcards.
+     * `q` matches the title, the description, or the category the listing is filed
+     * under — including the parent category. Searching "bike" on a marketplace
+     * with a Trek filed under "Bikes & Scooters" found nothing when only the title
+     * and description were considered, which is the search being wrong rather than
+     * the marketplace being empty. The caller passes `q` already lowercased and
+     * wrapped in wildcards.
      */
     @EntityGraph(attributePaths = {"seller", "category"})
     @Query("""
@@ -57,7 +61,8 @@ public interface ListingRepository extends JpaRepository<Listing, UUID> {
              and (:listingType is null or l.listingType = :listingType)
              and (:minPrice is null or l.price >= :minPrice)
              and (:maxPrice is null or l.price <= :maxPrice)
-             and (:q is null or lower(l.title) like :q or lower(l.description) like :q)
+             and (:q is null or lower(l.title) like :q or lower(l.description) like :q
+                  or lower(c.name) like :q or lower(p.name) like :q)
            """)
     Page<Listing> search(@Param("categoryId") Integer categoryId,
                          @Param("status") ListingStatus status,
