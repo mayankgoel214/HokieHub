@@ -62,7 +62,8 @@ export default function SignupPage() {
                   className="focus:border-orange-500 focus:ring-orange-500"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Must use your @vt.edu email address
+                  Must be your @vt.edu address — we send a link to it to check
+                  you can receive mail there
                 </p>
               </div>
 

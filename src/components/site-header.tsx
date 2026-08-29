@@ -95,7 +95,7 @@ export function SiteFooter() {
     <footer className="mt-16 border-t">
       <div className="text-muted-foreground container mx-auto flex flex-col gap-2 px-4 py-8 text-sm sm:flex-row sm:items-center sm:justify-between">
         <p className="text-pretty">
-          Every account is verified against an @vt.edu address, so you are
+          Posting and bidding require a confirmed @vt.edu address, so you are
           trading with someone actually on campus.
         </p>
         <a

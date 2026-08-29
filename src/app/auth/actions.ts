@@ -81,6 +81,47 @@ export async function signup(formData: FormData) {
   return { success: "Check your email to confirm your account." };
 }
 
+/**
+ * Signs the visitor in as a shared demo account.
+ *
+ * Posting and bidding require a Virginia Tech address that has been confirmed
+ * by a link, which is the correct rule and also means somebody evaluating this
+ * from outside the university cannot try any of it. This is the way through: a
+ * real account, on the record, that anyone can borrow.
+ *
+ * The credentials live in the server environment, so the password never reaches
+ * the browser. It is a demonstration account and is labelled as one everywhere
+ * it appears — it is not a back door around the email rule, it is one account
+ * that already satisfied it.
+ */
+export async function signInAsDemo() {
+  // A form action resolves to void, so a refusal goes back as a query parameter
+  // and the login page renders it.
+  const fail = (why: string): never => {
+    redirect(`/auth/login?error=${encodeURIComponent(why)}`);
+  };
+
+  if (!isSupabaseConfigured()) fail(NOT_CONFIGURED);
+
+  const email = process.env.DEMO_ACCOUNT_EMAIL;
+  const password = process.env.DEMO_ACCOUNT_PASSWORD;
+  if (!email || !password) {
+    fail(
+      "The demo account is not set up on this deployment. Sign up with a @vt.edu address instead.",
+    );
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signInWithPassword({
+    email: email!,
+    password: password!,
+  });
+  if (error) fail(`The demo account could not sign in: ${error.message}`);
+
+  revalidatePath("/", "layout");
+  redirect("/browse");
+}
+
 export async function signout() {
   if (!isSupabaseConfigured()) {
     redirect("/auth/login");

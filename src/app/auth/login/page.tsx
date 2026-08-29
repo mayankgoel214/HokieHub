@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { login } from "../actions";
+import { login, signInAsDemo } from "../actions";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,14 @@ import {
 } from "@/components/ui/card";
 
 export default function LoginPage() {
-  const [error, setError] = useState<string | null>(null);
+  // A failed demo sign-in comes back as a query parameter, since a form action
+  // cannot return one.
+  const fromQuery =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("error")
+      : null;
+
+  const [error, setError] = useState<string | null>(fromQuery);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -81,6 +88,21 @@ export default function LoginPage() {
               {loading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
+
+          {/* Posting needs a confirmed @vt.edu address, which is the right rule
+              and also shuts out anyone evaluating this from outside Virginia
+              Tech. This is a real account that already satisfied it, lent out. */}
+          <div className="mt-6 border-t pt-6">
+            <p className="text-muted-foreground mb-3 text-center text-sm text-pretty">
+              No Virginia Tech address? Try it as a demo account — you can post,
+              bid and use the price check.
+            </p>
+            <form action={signInAsDemo}>
+              <Button type="submit" variant="outline" className="w-full">
+                Continue as a demo account
+              </Button>
+            </form>
+          </div>
         </CardContent>
 
         <CardFooter className="justify-center">

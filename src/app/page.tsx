@@ -28,7 +28,7 @@ export default async function Home() {
         <div className="mx-auto max-w-2xl text-center">
           <div className="text-muted-foreground mb-5 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm">
             <BadgeCheck className="size-4 shrink-0" />
-            <span className="min-w-0">Verified @vt.edu accounts only</span>
+            <span className="min-w-0">@vt.edu accounts only</span>
           </div>
 
           <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
