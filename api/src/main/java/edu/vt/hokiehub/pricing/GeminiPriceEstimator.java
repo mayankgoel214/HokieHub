@@ -33,8 +33,14 @@ public class GeminiPriceEstimator {
 
     private static final Logger log = LoggerFactory.getLogger(GeminiPriceEstimator.class);
 
-    /** Multimodal and cheap enough to run per listing. */
-    static final String MODEL = "gemini-2.0-flash";
+    /**
+     * Multimodal, and cheap enough to run once per listing.
+     *
+     * Pinned rather than floating: Google retires these. gemini-2.0-flash was
+     * removed and started answering 404 with a message about which model to use
+     * instead, which is a better failure than most but still a failure.
+     */
+    static final String MODEL = "gemini-3.6-flash";
 
     private static final String ENDPOINT =
             "https://generativelanguage.googleapis.com/v1beta/models/" + MODEL + ":generateContent";
@@ -126,7 +132,20 @@ public class GeminiPriceEstimator {
             throw new PriceCheckFailedException("The valuation service returned nothing.");
         }
 
-        return parse(text);
+        Estimate parsed = parse(text);
+
+        // The model lists its comparables in the JSON, but the grounding metadata
+        // is the API's own record of what search actually returned. If that record
+        // is empty then nothing was retrieved, whatever the model wrote — so the
+        // estimate has nothing behind it and must not be published as though it
+        // has. This is the check that makes "grounded" mean something.
+        if (groundingSources(response) == 0) {
+            log.info("No grounding sources returned; treating as no comparables");
+            return new Estimate(parsed.identifiedItem(), null, null, null,
+                    parsed.summary(), List.of());
+        }
+
+        return parsed;
     }
 
     private String prompt(Listing listing) {
@@ -171,6 +190,14 @@ public class GeminiPriceEstimator {
                 listing.getCondition() == null ? "not stated" : listing.getCondition().value(),
                 listing.getCategory().getName(),
                 listing.getPrice());
+    }
+
+    /** How many results Google Search actually returned for this call. */
+    private int groundingSources(JsonNode response) {
+        if (response == null) return 0;
+        JsonNode chunks = response.path("candidates").path(0)
+                .path("groundingMetadata").path("groundingChunks");
+        return chunks.isArray() ? chunks.size() : 0;
     }
 
     private String extractText(JsonNode response) {
