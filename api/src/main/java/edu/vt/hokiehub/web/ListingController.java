@@ -52,7 +52,7 @@ public class ListingController {
         var covers = ids.isEmpty() ? java.util.Map.<java.util.UUID, String>of()
                 : images.findPrimaryFor(ids).stream().collect(java.util.stream.Collectors.toMap(
                         ListingImageRepository.PrimaryImage::getListingId,
-                        ListingImageRepository.PrimaryImage::getImageUrl,
+                        ListingImageRepository.PrimaryImage::url,
                         (a, b) -> a));
         var offers = bids.summarise(ids);
 

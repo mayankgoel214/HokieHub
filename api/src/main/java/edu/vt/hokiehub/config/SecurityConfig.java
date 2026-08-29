@@ -65,6 +65,8 @@ public class SecurityConfig {
                 // and that lives on a different path which stays authenticated.
                 .requestMatchers(HttpMethod.GET, "/api/listings/*/bids/summary").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/categories").permitAll()
+                // Photographs are part of a public listing.
+                .requestMatchers(HttpMethod.GET, "/api/images/*").permitAll()
                 .requestMatchers("/actuator/health/**", "/v3/api-docs/**", "/swagger-ui/**",
                                  "/swagger-ui.html").permitAll()
                 .anyRequest().authenticated())

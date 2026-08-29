@@ -2,6 +2,13 @@ spring:
   application:
     name: hokiehub-api
 
+  servlet:
+    multipart:
+      # The API refuses anything over 2 MB itself; these have to be at least as
+      # large or Tomcat rejects the upload first, with a much worse message.
+      max-file-size: 3MB
+      max-request-size: 6MB
+
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/hokiehub}
     username: ${DATABASE_USER:hokiehub}

@@ -58,7 +58,7 @@ public record ListingResponse(
     public static ListingResponse detail(Listing l, BidSummaryResponse bids) {
         String primary = l.getImages().stream()
                 .filter(i -> Boolean.TRUE.equals(i.getPrimary()))
-                .map(ListingImage::getImageUrl)
+                .map(ListingImage::publicUrl)
                 .findFirst()
                 .orElseGet(() -> l.getImages().isEmpty() ? null : l.getImages().get(0).getImageUrl());
         return build(l, true, primary, bids);
@@ -93,6 +93,6 @@ public record ListingResponse(
     }
 
     private static Image toImage(ListingImage i) {
-        return new Image(i.getId(), i.getImageUrl(), i.getPrimary(), i.getDisplayOrder());
+        return new Image(i.getId(), i.publicUrl(), i.getPrimary(), i.getDisplayOrder());
     }
 }

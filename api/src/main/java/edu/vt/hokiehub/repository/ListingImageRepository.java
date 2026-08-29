@@ -20,14 +20,25 @@ public interface ListingImageRepository extends JpaRepository<ListingImage, Inte
      * One extra query for the page costs one round trip and no correctness.
      */
     @Query("""
-           select i.listing.id as listingId, i.imageUrl as imageUrl
+           select i.listing.id as listingId, i.imageUrl as imageUrl, i.id as imageId
            from ListingImage i
            where i.listing.id in :listingIds and i.primary = true
            """)
     List<PrimaryImage> findPrimaryFor(@Param("listingIds") Collection<UUID> listingIds);
 
+    long countByListingId(UUID listingId);
+
     interface PrimaryImage {
         UUID getListingId();
         String getImageUrl();
+        Integer getImageId();
+
+        /**
+         * Where a browser should ask for it: the external link when there is one,
+         * this service's own endpoint when the bytes are stored here.
+         */
+        default String url() {
+            return getImageUrl() != null ? getImageUrl() : "/api/images/" + getImageId();
+        }
     }
 }

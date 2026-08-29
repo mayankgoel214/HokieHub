@@ -59,6 +59,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
         // Health checks are what the platform uses to decide whether this
         // instance is alive; rate limiting them would be self-inflicted.
         String path = request.getRequestURI();
+        // Photographs are immutable and cached for a year, and a single page asks
+        // for a dozen. Counting them against a browsing budget meant for API calls
+        // would throttle someone for scrolling.
+        if (path.startsWith("/api/images/") && HttpMethod.GET.matches(request.getMethod())) {
+            return true;
+        }
         return !path.startsWith("/api/") || HttpMethod.OPTIONS.matches(request.getMethod());
     }
 
