@@ -112,7 +112,12 @@ public class GeminiPriceEstimator {
                 "generationConfig", Map.of(
                         // Low, because this is an extraction task and not a creative one.
                         "temperature", 0.2,
-                        "maxOutputTokens", 2048));
+                        // A grounded reply carries the comparables it found and
+                        // runs long. At 2048 it was being cut off mid-object, and
+                        // the truncated JSON failed to parse — which surfaced as
+                        // "the valuation service returned an unreadable answer"
+                        // rather than as a limit being hit.
+                        "maxOutputTokens", 8192));
 
         JsonNode response;
         try {
@@ -223,7 +228,10 @@ public class GeminiPriceEstimator {
         try {
             node = json.readTree(cleaned);
         } catch (Exception e) {
-            log.warn("Gemini returned text that is not JSON: {}", cleaned.substring(0, Math.min(200, cleaned.length())));
+            // The length is logged because truncation is the likely cause and it
+            // is invisible in the first 200 characters.
+            log.warn("Gemini returned {} characters that are not JSON: {}",
+                    cleaned.length(), cleaned.substring(0, Math.min(300, cleaned.length())));
             throw new PriceCheckFailedException("The valuation service returned an unreadable answer.");
         }
 

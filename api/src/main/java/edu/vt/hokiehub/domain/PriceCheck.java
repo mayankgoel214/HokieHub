@@ -106,6 +106,28 @@ public class PriceCheck {
     @PreUpdate
     void onUpdate() { updatedAt = Instant.now(); }
 
+    /**
+     * Clears a previous attempt so this row can be reused.
+     *
+     * Retrying used to delete the old row and insert a new one, and Hibernate
+     * ordered the insert before the delete inside the same flush — so the retry
+     * collided with the unique constraint on listing_id and answered 500. There
+     * is one row per listing; a retry rewrites it.
+     */
+    public void reset(String model) {
+        this.status = Status.FAILED;
+        this.model = model;
+        this.identifiedItem = null;
+        this.estimatedLow = null;
+        this.estimatedTypical = null;
+        this.estimatedHigh = null;
+        this.verdict = null;
+        this.summary = null;
+        this.failureReason = null;
+        this.grounded = false;
+        this.sources.clear();
+    }
+
     public void addSource(PriceCheckSource source) {
         sources.add(source);
         source.setPriceCheck(this);

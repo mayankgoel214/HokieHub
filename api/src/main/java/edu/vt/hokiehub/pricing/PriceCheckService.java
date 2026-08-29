@@ -119,14 +119,18 @@ public class PriceCheckService {
         if (existing.isPresent() && existing.get().getStatus() != PriceCheck.Status.FAILED) {
             return existing.get();
         }
-        // A previous failure is worth retrying; a previous answer is not.
-        existing.ifPresent(checks::delete);
 
         List<ListingImage> photos = listing.getImages().stream()
                 .filter(ListingImage::isUploaded)
                 .toList();
 
-        PriceCheck check = new PriceCheck(listing, PriceCheck.Status.FAILED, GeminiPriceEstimator.MODEL);
+        // A previous failure is worth retrying; a previous answer is not. The
+        // retry rewrites the existing row rather than replacing it — deleting and
+        // inserting inside one flush let Hibernate order the insert first, which
+        // collided with the unique constraint on listing_id and answered 500.
+        PriceCheck check = existing.orElseGet(
+                () -> new PriceCheck(listing, PriceCheck.Status.FAILED, GeminiPriceEstimator.MODEL));
+        check.reset(GeminiPriceEstimator.MODEL);
 
         try {
             var estimate = estimator.estimate(listing, photos);

@@ -222,6 +222,36 @@ class PriceCheckApiIT {
     }
 
     @Test
+    @DisplayName("retrying after a failure rewrites the row rather than colliding with it")
+    void retryAfterFailureSucceeds() throws Exception {
+        unlockAs(BUYER);
+
+        // First attempt fails and is recorded.
+        when(estimator.estimate(any(), any()))
+                .thenThrow(new GeminiPriceEstimator.PriceCheckFailedException("upstream timed out"));
+        mvc.perform(get("/api/listings/" + listingId + "/price-check")
+                        .with(jwt().jwt(j -> j.subject(BUYER))))
+                .andExpect(jsonPath("$.status").value("failed"));
+
+        // Second attempt succeeds. There is one row per listing, so the retry has
+        // to rewrite it — deleting and re-inserting in one flush let Hibernate
+        // order the insert first and collide with the unique constraint, which
+        // surfaced as a 500 rather than as a second try.
+        reset(estimator);
+        when(estimator.isConfigured()).thenReturn(true);
+        estimatorReturns(new BigDecimal("120"), new BigDecimal("150"), new BigDecimal("175"),
+                List.of(comp("XM4 used", "150")));
+
+        mvc.perform(get("/api/listings/" + listingId + "/price-check")
+                        .with(jwt().jwt(j -> j.subject(BUYER))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ready"))
+                .andExpect(jsonPath("$.estimatedTypical").value(150.00))
+                .andExpect(jsonPath("$.failureReason").doesNotExist())
+                .andExpect(jsonPath("$.sources.length()").value(1));
+    }
+
+    @Test
     @DisplayName("a model failure is recorded as a failure, not as a free estimate")
     void modelFailureIsNotAnEstimate() throws Exception {
         when(estimator.estimate(any(), any()))
