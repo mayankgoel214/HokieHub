@@ -61,6 +61,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/listings/mine").authenticated()
                 // Browsing the marketplace does not require an account; posting does.
                 .requestMatchers(HttpMethod.GET, "/api/listings", "/api/listings/*").permitAll()
+                // How much interest a listing has is public; who is bidding is not,
+                // and that lives on a different path which stays authenticated.
+                .requestMatchers(HttpMethod.GET, "/api/listings/*/bids/summary").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/categories").permitAll()
                 .requestMatchers("/actuator/health/**", "/v3/api-docs/**", "/swagger-ui/**",
                                  "/swagger-ui.html").permitAll()

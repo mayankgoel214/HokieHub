@@ -54,6 +54,11 @@ public class Listing {
     @OrderBy("displayOrder ASC")
     private List<ListingImage> images = new ArrayList<>();
 
+    /** What the seller says is wrong with it. */
+    @OneToMany(mappedBy = "listing", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("displayOrder ASC")
+    private List<ListingDefect> defects = new ArrayList<>();
+
     @Column(name = "created_at")
     private Instant createdAt;
 
@@ -93,6 +98,22 @@ public class Listing {
     public void addImage(ListingImage image) {
         images.add(image);
         image.setListing(this);
+    }
+
+    /** Keeps both sides of the association consistent. */
+    public void addDefect(ListingDefect defect) {
+        defects.add(defect);
+        defect.setListing(this);
+    }
+
+    /** Replaces the whole set, which is what an edit of the list means. */
+    public void replaceDefects(List<ListingDefect> replacements) {
+        defects.clear();
+        replacements.forEach(this::addDefect);
+    }
+
+    public List<ListingDefect> getDefects() {
+        return defects;
     }
 
     public void setServiceDetail(ServiceDetail detail) {

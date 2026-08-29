@@ -68,6 +68,9 @@ public class ListingService {
     public Listing findById(UUID id, boolean countView) {
         Listing listing = listings.findWithDetailsById(id)
                 .orElseThrow(() -> new NotFoundException("Listing " + id + " not found"));
+        // A second collection cannot ride along on the same fetch, so it is loaded
+        // here — inside the transaction, where a lazy association still can be.
+        listing.getDefects().size();
         if (countView) {
             listings.incrementViews(id);
         }
@@ -105,8 +108,10 @@ public class ListingService {
             listing.addImage(new ListingImage(img.imageUrl(), isPrimary, order));
         }
 
-        // Cascade persists the service detail and every image in one flush, rather
-        // than the original implementation's insert-per-image loop.
+        applyDefects(listing, request.defects());
+
+        // Cascade persists the service detail, every image and every defect in one
+        // flush, rather than the original implementation's insert-per-image loop.
         return listings.save(listing);
     }
 
@@ -114,6 +119,7 @@ public class ListingService {
     public Listing update(UUID id, String userId, UpdateListingRequest request) {
         Listing listing = listings.findWithDetailsById(id)
                 .orElseThrow(() -> new NotFoundException("Listing " + id + " not found"));
+        listing.getDefects().size();
         requireOwner(listing, userId);
 
         if (request.categoryId() != null) {
@@ -127,8 +133,29 @@ public class ListingService {
         if (request.status() != null) listing.setStatus(ListingStatus.from(request.status()));
         if (request.location() != null) listing.setLocation(request.location());
         if (request.expiresAt() != null) listing.setExpiresAt(request.expiresAt());
+        // A null list means "not editing the defects"; an empty one means "there are
+        // none any more", and those have to stay different or a caller updating only
+        // the price would silently wipe the disclosures.
+        if (request.defects() != null) {
+            applyDefects(listing, request.defects());
+        }
 
         return listing;
+    }
+
+    private static void applyDefects(Listing listing, List<CreateListingRequest.DefectPayload> payloads) {
+        if (payloads == null) {
+            return;
+        }
+        List<ListingDefect> defects = new java.util.ArrayList<>();
+        for (int i = 0; i < payloads.size(); i++) {
+            var d = payloads.get(i);
+            DefectSeverity severity = d.severity() == null
+                    ? DefectSeverity.MINOR
+                    : DefectSeverity.from(d.severity());
+            defects.add(new ListingDefect(d.description(), severity, i));
+        }
+        listing.replaceDefects(defects);
     }
 
     @Transactional

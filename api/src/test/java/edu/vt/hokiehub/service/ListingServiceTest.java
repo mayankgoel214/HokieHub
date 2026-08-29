@@ -1,5 +1,6 @@
 package edu.vt.hokiehub.service;
 
+import edu.vt.hokiehub.domain.DefectSeverity;
 import edu.vt.hokiehub.domain.*;
 import edu.vt.hokiehub.exception.ForbiddenException;
 import edu.vt.hokiehub.exception.NotFoundException;
@@ -69,7 +70,8 @@ class ListingServiceTest {
                 3, "Desk lamp", "Works fine", new BigDecimal("12.50"),
                 "good", "item", "Pritchard Hall", null, null,
                 List.of(new CreateListingRequest.ImagePayload("https://img/1.jpg", null, null),
-                        new CreateListingRequest.ImagePayload("https://img/2.jpg", null, null)));
+                        new CreateListingRequest.ImagePayload("https://img/2.jpg", null, null)),
+                List.of(new CreateListingRequest.DefectPayload("Small dent in the shade", "minor")));
 
         Listing created = service.create(OWNER_CALLER, request);
 
@@ -78,6 +80,8 @@ class ListingServiceTest {
         assertThat(created.getCondition()).isEqualTo(ItemCondition.GOOD);
         assertThat(created.getStatus()).isEqualTo(ListingStatus.AVAILABLE);
         assertThat(created.getImages()).hasSize(2);
+        assertThat(created.getDefects()).hasSize(1);
+        assertThat(created.getDefects().get(0).getSeverity()).isEqualTo(DefectSeverity.MINOR);
         // First image defaults to primary when the client does not say which is.
         assertThat(created.getImages().get(0).getPrimary()).isTrue();
         assertThat(created.getImages().get(1).getPrimary()).isFalse();
@@ -96,7 +100,7 @@ class ListingServiceTest {
                 new CreateListingRequest.ServiceDetailPayload(
                         List.of("MATH 1225", "MATH 1226"), "Evenings",
                         new BigDecimal("25.00"), "3 semesters"),
-                null);
+                null, null);
 
         Listing created = service.create(OWNER_CALLER, request);
 
@@ -112,7 +116,7 @@ class ListingServiceTest {
         when(categories.findById(999)).thenReturn(Optional.empty());
 
         var request = new CreateListingRequest(999, "Thing", "Desc",
-                BigDecimal.ONE, null, "item", null, null, null, null);
+                BigDecimal.ONE, null, "item", null, null, null, null, null);
 
         assertThatThrownBy(() -> service.create(OWNER_CALLER, request))
                 .isInstanceOf(NotFoundException.class)
@@ -128,7 +132,7 @@ class ListingServiceTest {
         when(listings.save(any(Listing.class))).thenAnswer(i -> i.getArgument(0));
 
         var request = new CreateListingRequest(1, "Lamp", "Desc",
-                BigDecimal.ONE, null, "item", null, null, null, null);
+                BigDecimal.ONE, null, "item", null, null, null, null, null);
 
         Listing created = service.create(OWNER_CALLER, request);
 
@@ -143,7 +147,7 @@ class ListingServiceTest {
         when(users.findById("outsider-id")).thenReturn(Optional.empty());
 
         var request = new CreateListingRequest(1, "Lamp", "Desc",
-                BigDecimal.ONE, null, "item", null, null, null, null);
+                BigDecimal.ONE, null, "item", null, null, null, null, null);
 
         assertThatThrownBy(() -> service.create(outsider, request))
                 .isInstanceOf(ForbiddenException.class)
@@ -158,7 +162,7 @@ class ListingServiceTest {
         UUID id = UUID.randomUUID();
         when(listings.findWithDetailsById(id)).thenReturn(Optional.of(listingOwnedByOwner()));
 
-        var request = new UpdateListingRequest(null, "Hijacked title", null, null, null, null, null, null);
+        var request = new UpdateListingRequest(null, "Hijacked title", null, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> service.update(id, STRANGER, request))
                 .isInstanceOf(ForbiddenException.class);
@@ -172,7 +176,7 @@ class ListingServiceTest {
         when(listings.findWithDetailsById(id)).thenReturn(Optional.of(existing));
 
         var request = new UpdateListingRequest(null, null, null,
-                new BigDecimal("35.00"), null, "sold", null, null);
+                new BigDecimal("35.00"), null, "sold", null, null, null);
 
         Listing updated = service.update(id, OWNER, request);
 

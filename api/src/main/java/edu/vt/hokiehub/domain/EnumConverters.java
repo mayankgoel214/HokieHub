@@ -50,4 +50,30 @@ public final class EnumConverters {
             return dbData == null ? null : ItemCondition.from(dbData);
         }
     }
+
+    @Converter(autoApply = true)
+    public static class BidStatusConverter implements AttributeConverter<BidStatus, String> {
+        @Override
+        public String convertToDatabaseColumn(BidStatus attribute) {
+            return attribute == null ? null : attribute.value();
+        }
+
+        @Override
+        public BidStatus convertToEntityAttribute(String dbData) {
+            return dbData == null ? null : BidStatus.from(dbData);
+        }
+    }
+
+    @Converter(autoApply = true)
+    public static class DefectSeverityConverter implements AttributeConverter<DefectSeverity, String> {
+        @Override
+        public String convertToDatabaseColumn(DefectSeverity attribute) {
+            return attribute == null ? null : attribute.value();
+        }
+
+        @Override
+        public DefectSeverity convertToEntityAttribute(String dbData) {
+            return dbData == null ? null : DefectSeverity.from(dbData);
+        }
+    }
 }

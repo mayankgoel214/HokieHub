@@ -28,6 +28,10 @@ public record ListingResponse(
         Integer viewsCount,
         ServiceDetails serviceDetails,
         List<Image> images,
+        /** The card image, so a list endpoint need not return every photo. */
+        String primaryImageUrl,
+        List<DefectResponse> defects,
+        BidSummaryResponse bids,
         Instant createdAt,
         Instant updatedAt,
         Instant expiresAt
@@ -41,17 +45,27 @@ public record ListingResponse(
 
     public record Image(Integer id, String imageUrl, Boolean isPrimary, Integer displayOrder) {}
 
-    /** Summary form: no images or service details, for list endpoints. */
-    public static ListingResponse summary(Listing l) {
-        return build(l, false);
+    /**
+     * Summary form for list endpoints: one image rather than all of them, and no
+     * service details. The image URL and bid counts are passed in because both are
+     * fetched for the whole page in one query — asking per row would be an N+1.
+     */
+    public static ListingResponse summary(Listing l, String primaryImageUrl, BidSummaryResponse bids) {
+        return build(l, false, primaryImageUrl, bids);
     }
 
     /** Full form, for a single listing. */
-    public static ListingResponse detail(Listing l) {
-        return build(l, true);
+    public static ListingResponse detail(Listing l, BidSummaryResponse bids) {
+        String primary = l.getImages().stream()
+                .filter(i -> Boolean.TRUE.equals(i.getPrimary()))
+                .map(ListingImage::getImageUrl)
+                .findFirst()
+                .orElseGet(() -> l.getImages().isEmpty() ? null : l.getImages().get(0).getImageUrl());
+        return build(l, true, primary, bids);
     }
 
-    private static ListingResponse build(Listing l, boolean withDetails) {
+    private static ListingResponse build(Listing l, boolean withDetails,
+                                         String primaryImageUrl, BidSummaryResponse bids) {
         ServiceDetail sd = withDetails ? l.getServiceDetail() : null;
         return new ListingResponse(
                 l.getId(),
@@ -69,6 +83,9 @@ public record ListingResponse(
                 sd == null ? null : new ServiceDetails(sd.getSubjects(), sd.getAvailability(),
                         sd.getHourlyRate(), sd.getExperienceLevel()),
                 withDetails ? l.getImages().stream().map(ListingResponse::toImage).toList() : List.of(),
+                primaryImageUrl,
+                withDetails ? l.getDefects().stream().map(DefectResponse::from).toList() : List.of(),
+                bids == null ? BidSummaryResponse.NONE : bids,
                 l.getCreatedAt(),
                 l.getUpdatedAt(),
                 l.getExpiresAt()

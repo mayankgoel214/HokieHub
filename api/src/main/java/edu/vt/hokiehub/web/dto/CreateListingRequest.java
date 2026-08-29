@@ -40,8 +40,22 @@ public record CreateListingRequest(
 
         @Valid ServiceDetailPayload serviceDetails,
 
-        @Valid List<ImagePayload> images
+        @Valid List<ImagePayload> images,
+
+        /** What is wrong with it, said up front rather than discovered on arrival. */
+        @Valid
+        @Size(max = 10, message = "at most 10 defects can be listed")
+        List<DefectPayload> defects
 ) {
+    public record DefectPayload(
+            @NotBlank(message = "a defect needs a description")
+            @Size(max = 200, message = "a defect description must be at most 200 characters")
+            String description,
+
+            @Pattern(regexp = "minor|moderate|major", message = "severity must be minor, moderate or major")
+            String severity
+    ) {}
+
     public record ServiceDetailPayload(
             List<String> subjects,
             String availability,

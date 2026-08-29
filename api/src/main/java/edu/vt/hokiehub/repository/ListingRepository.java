@@ -17,6 +17,12 @@ import java.util.UUID;
 
 public interface ListingRepository extends JpaRepository<Listing, UUID> {
 
+    /**
+     * Images but not defects, deliberately. Both are Lists, and Hibernate refuses
+     * to fetch two bags in one query — MultipleBagFetchException — because the
+     * cartesian product of two collections cannot be unpicked back into rows. The
+     * service initialises defects separately, inside the same transaction.
+     */
     @EntityGraph(attributePaths = {"seller", "category", "images", "serviceDetail"})
     Optional<Listing> findWithDetailsById(UUID id);
 

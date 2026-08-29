@@ -1,5 +1,7 @@
 package edu.vt.hokiehub.web;
 
+import edu.vt.hokiehub.repository.ListingImageRepository;
+import edu.vt.hokiehub.service.BidService;
 import edu.vt.hokiehub.service.Caller;
 import edu.vt.hokiehub.service.ListingService;
 import edu.vt.hokiehub.web.dto.*;
@@ -29,9 +31,33 @@ public class ListingController {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final ListingService service;
+    private final BidService bids;
+    private final ListingImageRepository images;
 
-    public ListingController(ListingService service) {
+    public ListingController(ListingService service, BidService bids, ListingImageRepository images) {
         this.service = service;
+        this.bids = bids;
+        this.images = images;
+    }
+
+    /**
+     * Decorates a page with its cover images and offer counts.
+     *
+     * Two queries for the whole page, not two per row. Fetching these inside the
+     * mapper would have reintroduced exactly the N+1 the entity graphs exist to
+     * prevent, and it would not have looked like a mistake.
+     */
+    private PageResponse<ListingResponse> decorate(Page<edu.vt.hokiehub.domain.Listing> page) {
+        var ids = page.getContent().stream().map(edu.vt.hokiehub.domain.Listing::getId).toList();
+        var covers = ids.isEmpty() ? java.util.Map.<java.util.UUID, String>of()
+                : images.findPrimaryFor(ids).stream().collect(java.util.stream.Collectors.toMap(
+                        ListingImageRepository.PrimaryImage::getListingId,
+                        ListingImageRepository.PrimaryImage::getImageUrl,
+                        (a, b) -> a));
+        var offers = bids.summarise(ids);
+
+        return PageResponse.from(page, l -> ListingResponse.summary(
+                l, covers.get(l.getId()), offers.get(l.getId())));
     }
 
     @GetMapping
@@ -54,17 +80,15 @@ public class ListingController {
                 Math.min(Math.max(size, 1), MAX_PAGE_SIZE),
                 Sort.by(Sort.Direction.DESC, "createdAt"));
 
-        Page<edu.vt.hokiehub.domain.Listing> result =
-                service.search(categoryId, status, listingType, minPrice, maxPrice, q, pageable);
-
-        return PageResponse.from(result, ListingResponse::summary);
+        return decorate(service.search(categoryId, status, listingType, minPrice, maxPrice, q, pageable));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Fetch a single listing, including images and service details")
     @ApiResponse(responseCode = "404", description = "No listing with that id")
     public ListingResponse get(@PathVariable UUID id) {
-        return ListingResponse.detail(service.findById(id, true));
+        var listing = service.findById(id, true);
+        return ListingResponse.detail(listing, bids.summarise(id));
     }
 
     @PostMapping
@@ -75,7 +99,7 @@ public class ListingController {
         var created = service.create(Caller.from(jwt), request);
         return ResponseEntity
                 .created(URI.create("/api/listings/" + created.getId()))
-                .body(ListingResponse.detail(created));
+                .body(ListingResponse.detail(created, BidSummaryResponse.NONE));
     }
 
     @PutMapping("/{id}")
@@ -84,7 +108,8 @@ public class ListingController {
     public ListingResponse update(@AuthenticationPrincipal Jwt jwt,
                                   @PathVariable UUID id,
                                   @Valid @RequestBody UpdateListingRequest request) {
-        return ListingResponse.detail(service.update(id, jwt.getSubject(), request));
+        return ListingResponse.detail(service.update(id, jwt.getSubject(), request),
+                bids.summarise(id));
     }
 
     @DeleteMapping("/{id}")
@@ -102,7 +127,6 @@ public class ListingController {
         var pageable = PageRequest.of(Math.max(page, 0),
                 Math.min(Math.max(size, 1), MAX_PAGE_SIZE),
                 Sort.by(Sort.Direction.DESC, "createdAt"));
-        return PageResponse.from(service.findBySeller(jwt.getSubject(), pageable),
-                ListingResponse::summary);
+        return decorate(service.findBySeller(jwt.getSubject(), pageable));
     }
 }
