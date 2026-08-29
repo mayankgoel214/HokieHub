@@ -34,6 +34,18 @@ export function coverFor(categoryName: string, title: string): string {
   return "/covers/generic.svg";
 }
 
+/**
+ * Photographs live on the API, generated covers live here. A path beginning
+ * /api/ has to be made absolute or the optimiser resolves it against this app
+ * and answers 400 — which is how uploaded photographs came to be the only ones
+ * that did not render.
+ */
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+
+function absolute(src: string): string {
+  return src.startsWith("/api/") ? `${API_URL}${src}` : src;
+}
+
 export function ListingCover({
   src,
   categoryName,
@@ -47,8 +59,9 @@ export function ListingCover({
   priority?: boolean;
   className?: string;
 }) {
-  const resolved =
-    src && src.trim() !== "" ? src : coverFor(categoryName, title);
+  const resolved = absolute(
+    src && src.trim() !== "" ? src : coverFor(categoryName, title),
+  );
 
   return (
     <div

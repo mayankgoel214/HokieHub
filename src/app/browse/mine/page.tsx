@@ -119,6 +119,9 @@ export default async function MyListingsPage({
                       </Button>
                     </form>
                   )}
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={`/listings/${listing.id}/edit`}>Edit</Link>
+                  </Button>
                   <form action={removeListing}>
                     <input type="hidden" name="id" value={listing.id} />
                     <Button type="submit" variant="ghost" size="sm">

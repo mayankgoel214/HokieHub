@@ -1,5 +1,6 @@
 import type {
   Bid,
+  DefectInput,
   PriceCheck,
   PriceCheckStatusInfo,
   BidSummary,
@@ -111,12 +112,26 @@ export function createListing(
 
 export function updateListing(
   id: string,
-  body: Partial<CreateListingBody> & { status?: string },
+  body: Partial<CreateListingBody> & {
+    status?: string;
+    defects?: DefectInput[];
+  },
   token: string,
 ): Promise<Listing> {
   return request<Listing>(`/api/listings/${id}`, {
     method: "PUT",
     body: JSON.stringify(body),
+    token,
+  });
+}
+
+export function deleteListingImage(
+  listingId: string,
+  imageId: number,
+  token: string,
+): Promise<void> {
+  return request<void>(`/api/listings/${listingId}/images/${imageId}`, {
+    method: "DELETE",
     token,
   });
 }
@@ -128,40 +143,40 @@ export function deleteListing(id: string, token: string): Promise<void> {
 export function placeBid(
   listingId: string,
   body: { amount: number; message?: string },
-  token: string
+  token: string,
 ): Promise<Bid> {
   return request<Bid>(`/api/listings/${listingId}/bids`, {
-    method: 'PUT',
+    method: "PUT",
     body: JSON.stringify(body),
     token,
-  })
+  });
 }
 
 export function withdrawBid(listingId: string, token: string): Promise<void> {
   return request<void>(`/api/listings/${listingId}/bids`, {
-    method: 'DELETE',
+    method: "DELETE",
     token,
-  })
+  });
 }
 
 /** Seller only. Everyone else gets the count via the listing itself. */
 export function listBids(listingId: string, token: string): Promise<Bid[]> {
-  return request<Bid[]>(`/api/listings/${listingId}/bids`, { token })
+  return request<Bid[]>(`/api/listings/${listingId}/bids`, { token });
 }
 
 export function acceptBid(
   listingId: string,
   bidId: string,
-  token: string
+  token: string,
 ): Promise<Bid> {
   return request<Bid>(`/api/listings/${listingId}/bids/${bidId}/accept`, {
-    method: 'POST',
+    method: "POST",
     token,
-  })
+  });
 }
 
 export function bidSummary(listingId: string): Promise<BidSummary> {
-  return request<BidSummary>(`/api/listings/${listingId}/bids/summary`)
+  return request<BidSummary>(`/api/listings/${listingId}/bids/summary`);
 }
 
 /**
@@ -173,47 +188,55 @@ export function bidSummary(listingId: string): Promise<BidSummary> {
 export async function uploadListingImage(
   listingId: string,
   file: File,
-  token: string
+  token: string,
 ): Promise<{ id: number; url: string; isPrimary: boolean }> {
-  const body = new FormData()
-  body.append('file', file)
+  const body = new FormData();
+  body.append("file", file);
 
   const response = await fetch(`${API_URL}/api/listings/${listingId}/images`, {
-    method: 'POST',
+    method: "POST",
     headers: { Authorization: `Bearer ${token}` },
     body,
-  })
+  });
 
-  const parsed = await response.json().catch(() => null)
+  const parsed = await response.json().catch(() => null);
   if (!response.ok) {
-    const problem = parsed as ProblemDetail | null
+    const problem = parsed as ProblemDetail | null;
     throw new ApiError(
       problem?.detail ?? `Upload failed (${response.status})`,
-      response.status
-    )
+      response.status,
+    );
   }
-  return parsed
+  return parsed;
 }
 
 export function priceCheckStatus(
   listingId: string,
-  token?: string
+  token?: string,
 ): Promise<PriceCheckStatusInfo> {
   return request<PriceCheckStatusInfo>(
     `/api/listings/${listingId}/price-check/status`,
-    { token }
-  )
+    { token },
+  );
 }
 
-export function unlockPriceCheck(listingId: string, token: string): Promise<void> {
+export function unlockPriceCheck(
+  listingId: string,
+  token: string,
+): Promise<void> {
   return request<void>(`/api/listings/${listingId}/price-check/unlock`, {
-    method: 'POST',
+    method: "POST",
     token,
-  })
+  });
 }
 
-export function getPriceCheck(listingId: string, token: string): Promise<PriceCheck> {
-  return request<PriceCheck>(`/api/listings/${listingId}/price-check`, { token })
+export function getPriceCheck(
+  listingId: string,
+  token: string,
+): Promise<PriceCheck> {
+  return request<PriceCheck>(`/api/listings/${listingId}/price-check`, {
+    token,
+  });
 }
 
 export function myListings(

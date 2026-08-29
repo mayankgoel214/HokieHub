@@ -235,9 +235,16 @@ export default async function ListingPage({
 
               <div className="mt-5 border-t pt-5">
                 {isSeller ? (
-                  <p className="text-muted-foreground text-sm">
-                    This is your listing. Offers appear below.
-                  </p>
+                  <div className="space-y-3">
+                    <p className="text-muted-foreground text-sm">
+                      This is your listing. Offers appear below.
+                    </p>
+                    <Button asChild variant="outline" className="w-full">
+                      <Link href={`/listings/${listing.id}/edit`}>
+                        Edit this listing
+                      </Link>
+                    </Button>
+                  </div>
                 ) : !takingOffers ? (
                   <p className="text-muted-foreground text-sm">
                     This listing is {listing.status} and is not taking offers.
