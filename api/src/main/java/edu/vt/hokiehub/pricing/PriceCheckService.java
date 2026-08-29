@@ -43,6 +43,9 @@ public class PriceCheckService {
     /** What it would cost, if payment were wired up. It is not; unlocking is free. */
     public static final int PRICE_CENTS = 199;
 
+    /** How long a "no comparables" answer stands before it is worth asking again. */
+    private static final java.time.Duration NO_COMPARABLES_TTL = java.time.Duration.ofHours(1);
+
     private final ListingRepository listings;
     private final PriceCheckRepository checks;
     private final PriceCheckUnlockRepository unlocks;
@@ -116,7 +119,7 @@ public class PriceCheckService {
         }
 
         var existing = checks.findByListingId(listingId);
-        if (existing.isPresent() && existing.get().getStatus() != PriceCheck.Status.FAILED) {
+        if (existing.isPresent() && !worthRetrying(existing.get())) {
             return existing.get();
         }
 
@@ -179,6 +182,27 @@ public class PriceCheckService {
             check.setFailureReason(e.getMessage());
             return checks.save(check);
         }
+    }
+
+    /**
+     * An answer is kept; a non-answer is kept only for a while.
+     *
+     * A successful estimate is the same tomorrow as today, so it is never
+     * recomputed. A failure is retried immediately — it says nothing about the
+     * item. "No comparables" sits in between: it may be true of a genuinely
+     * unique object, and it may equally be an afternoon when the model declined
+     * to search. Keeping it forever meant a listing could be permanently marked
+     * unpriceable on the strength of one bad run, so it lapses after an hour.
+     */
+    private static boolean worthRetrying(PriceCheck check) {
+        if (check.getStatus() == PriceCheck.Status.FAILED) {
+            return true;
+        }
+        if (check.getStatus() == PriceCheck.Status.NO_COMPARABLES) {
+            return check.getCreatedAt() == null
+                    || check.getCreatedAt().isBefore(java.time.Instant.now().minus(NO_COMPARABLES_TTL));
+        }
+        return false;
     }
 
     /** Same rule as everywhere else: a valid token is not a Virginia Tech account. */

@@ -209,6 +209,38 @@ class PriceCheckApiIT {
     }
 
     @Test
+    @DisplayName("a successful estimate is never recomputed")
+    void readyIsCachedForGood() throws Exception {
+        estimatorReturns(new BigDecimal("120"), new BigDecimal("150"), new BigDecimal("175"),
+                List.of(comp("one", "150")));
+        unlockAs(BUYER);
+
+        for (int i = 0; i < 3; i++) {
+            mvc.perform(get("/api/listings/" + listingId + "/price-check")
+                    .with(jwt().jwt(j -> j.subject(BUYER)))).andExpect(status().isOk());
+        }
+        verify(estimator, times(1)).estimate(any(), any());
+    }
+
+    @Test
+    @DisplayName("a fresh 'no comparables' is kept rather than asked again immediately")
+    void noComparablesIsCachedBriefly() throws Exception {
+        estimatorReturns(null, null, null, List.of());
+        unlockAs(BUYER);
+
+        mvc.perform(get("/api/listings/" + listingId + "/price-check")
+                        .with(jwt().jwt(j -> j.subject(BUYER))))
+                .andExpect(jsonPath("$.status").value("no_comparables"));
+        mvc.perform(get("/api/listings/" + listingId + "/price-check")
+                        .with(jwt().jwt(j -> j.subject(BUYER))))
+                .andExpect(jsonPath("$.status").value("no_comparables"));
+
+        // Within the hour it stands, so a listing nobody sells is not re-priced
+        // on every view.
+        verify(estimator, times(1)).estimate(any(), any());
+    }
+
+    @Test
     @DisplayName("a deployment with no key says so rather than pretending")
     void unconfiguredIsHonest() throws Exception {
         when(estimator.isConfigured()).thenReturn(false);
