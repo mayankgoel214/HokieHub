@@ -35,7 +35,7 @@ export default async function Home() {
           </p>
 
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href="/dashboard">
+            <Link href="/browse">
               <Button size="lg" className="w-full sm:w-auto">
                 Browse listings
                 <ArrowRight className="size-5" />

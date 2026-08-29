@@ -35,7 +35,7 @@ export default async function ListingPage({
     <main className="min-h-screen bg-background">
       <div className="container mx-auto max-w-3xl px-4 py-8">
         <Link
-          href="/dashboard"
+          href="/browse"
           className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm"
         >
           <ArrowLeft className="size-4" />

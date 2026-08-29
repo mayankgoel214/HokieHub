@@ -52,7 +52,7 @@ export default function CreateListingPage() {
       }
 
       await createListing(formData as CreateListingBody, session.access_token)
-      router.push('/dashboard')
+      router.push('/browse')
       router.refresh()
     } catch (err) {
       // ApiError already carries the API's own message, including the first
@@ -71,7 +71,7 @@ export default function CreateListingPage() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-2xl px-4 py-8">
         <div className="mb-6">
-          <Link href="/dashboard">
+          <Link href="/browse">
             <Button variant="ghost" size="sm">
               <ArrowLeft className="size-4" />
               Back to Dashboard
@@ -222,7 +222,7 @@ export default function CreateListingPage() {
                 >
                   {isSubmitting ? 'Creating...' : 'Create Listing'}
                 </Button>
-                <Link href="/dashboard" className="flex-1">
+                <Link href="/browse" className="flex-1">
                   <Button type="button" variant="outline" className="w-full">
                     Cancel
                   </Button>

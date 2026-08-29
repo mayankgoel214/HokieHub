@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 /** Paths that create or manage a listing, and so need a signed-in Hokie. */
-const PROTECTED_PREFIXES = ["/dashboard/create"];
+const PROTECTED_PREFIXES = ["/browse/new"];
 
 // Browsing the marketplace is public, matching the API, which serves listings
 // and categories without a token. Gating the whole site behind sign-in meant a
