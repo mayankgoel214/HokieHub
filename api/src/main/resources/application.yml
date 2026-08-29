@@ -37,11 +37,14 @@ spring:
     type: ${CACHE_TYPE:redis}
 
 hokiehub:
-  jwt:
-    # No default. A forgotten secret has to be a startup failure, not a service
-    # that boots and trusts tokens signed with a string from a public repository.
-    # docker-compose.yml supplies a throwaway value for local runs.
-    secret: ${SUPABASE_JWT_SECRET:}
+  supabase:
+    # The project's base URL. Its JWKS endpoint publishes the public half of the
+    # ES256 key Supabase signs sessions with, so no secret is stored here at all.
+    # No default: a forgotten setting has to be a startup failure, not a service
+    # that boots and trusts anything. docker-compose.yml supplies one locally.
+    url: ${SUPABASE_URL:}
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
 

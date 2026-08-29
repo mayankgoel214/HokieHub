@@ -44,7 +44,11 @@ class ListingApiIT {
     static void properties(DynamicPropertyRegistry registry) {
         // No Redis in the test run; the cache abstraction is exercised in-memory.
         registry.add("spring.cache.type", () -> "simple");
-        registry.add("hokiehub.jwt.secret", () -> "test-secret-value-long-enough-for-hmac-sha256");
+        // No Redis container in this suite; the limiter has its own.
+        registry.add("hokiehub.rate-limit.enabled", () -> "false");
+        // The mock jwt() post-processor bypasses the decoder; this only has to
+        // be present so the bean builds.
+        registry.add("hokiehub.supabase.url", () -> "https://test-project.supabase.co");
     }
 
     @Autowired MockMvc mvc;

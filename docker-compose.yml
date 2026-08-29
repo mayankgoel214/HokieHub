@@ -54,8 +54,11 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       CORS_ALLOWED_ORIGINS: http://localhost:3000
-      # Set to the Supabase project's JWT secret to accept real sessions.
-      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-local-development-secret-not-for-any-real-deployment}
+      # The Supabase project whose sessions this API should trust. Its JWKS
+      # endpoint publishes the public key, so there is no secret to set.
+      SUPABASE_URL: ${SUPABASE_URL:-https://placeholder.supabase.co}
+      # Redis here has no password; a managed one does.
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     ports:
       - "8080:8080"
 

@@ -7,16 +7,16 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -29,21 +29,23 @@ import java.util.List;
 public class SecurityConfig {
 
     /**
-     * Deliberately without a default. This value is the only thing standing between
-     * an anonymous request and a forged session, and application.yml used to carry a
-     * development fallback — which meant a deployment that simply forgot to set the
-     * variable came up looking healthy while accepting tokens anyone could mint from
-     * a string committed to this repository. A missing secret must stop the service,
-     * not be quietly substituted.
+     * The Supabase project's base URL, e.g. https://abcdefg.supabase.co.
+     *
+     * Deliberately without a default. This is the only thing standing between an
+     * anonymous request and a forged session, and application.yml used to carry a
+     * development fallback for the old shared secret — which meant a deployment
+     * that simply forgot to configure it came up looking healthy while accepting
+     * tokens anyone could mint from a string committed to this repository. Missing
+     * configuration must stop the service, not be quietly substituted.
      */
-    @Value("${hokiehub.jwt.secret:}")
-    private String jwtSecret;
+    @Value("${hokiehub.supabase.url:}")
+    private String supabaseUrl;
 
     @Value("${hokiehub.cors.allowed-origins}")
     private List<String> allowedOrigins;
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain filterChain(HttpSecurity http, RateLimitFilter rateLimit) throws Exception {
         http
             // No cookies, no server-side session: every request carries its own bearer
             // token, so CSRF has nothing to attack.
@@ -62,26 +64,52 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health/**", "/v3/api-docs/**", "/swagger-ui/**",
                                  "/swagger-ui.html").permitAll()
                 .anyRequest().authenticated())
-            .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.decoder(jwtDecoder())));
+            .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.decoder(jwtDecoder())))
+            // After authentication, so an authenticated caller is counted as
+            // themselves rather than as whatever address they share.
+            .addFilterAfter(rateLimit, BearerTokenAuthenticationFilter.class);
 
         return http.build();
     }
 
+    /**
+     * Any Filter bean is otherwise also registered with the servlet container,
+     * which would run it a second time and outside the security chain, where
+     * there is no authenticated principal to attribute the request to.
+     */
+    @Bean
+    FilterRegistrationBean<RateLimitFilter> rateLimitNotRegisteredTwice(RateLimitFilter filter) {
+        FilterRegistrationBean<RateLimitFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
     @Bean
     JwtDecoder jwtDecoder() {
-        if (jwtSecret == null || jwtSecret.isBlank()) {
+        if (supabaseUrl == null || supabaseUrl.isBlank()) {
             throw new IllegalStateException(
-                    "SUPABASE_JWT_SECRET is not set. It is the Supabase project's JWT "
-                  + "secret, and without it this service cannot tell a real session "
-                  + "from a forged one. Set it before starting.");
+                    "SUPABASE_URL is not set. It is the Supabase project's base URL, "
+                  + "e.g. https://your-ref.supabase.co, and without it this service "
+                  + "cannot tell a real session from a forged one. Set it before starting.");
         }
 
-        // Supabase signs project JWTs with HS256 using the project's JWT secret.
-        SecretKeySpec key = new SecretKeySpec(
-                jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-        return NimbusJwtDecoder.withSecretKey(key)
-                .macAlgorithm(MacAlgorithm.HS256)
+        String base = supabaseUrl.replaceAll("/+$", "");
+        String issuer = base + "/auth/v1";
+
+        // Supabase signs project JWTs with an asymmetric key (ES256) and publishes
+        // the public half at the project's JWKS endpoint. Verifying against that is
+        // both what actually works and strictly safer than the legacy HS256 shared
+        // secret: there is no secret to store on the API host, and rotating the
+        // signing key needs no redeploy here.
+        NimbusJwtDecoder decoder = NimbusJwtDecoder
+                .withJwkSetUri(issuer + "/.well-known/jwks.json")
                 .build();
+
+        // A signature check alone would accept a correctly signed token from a
+        // different Supabase project. Pinning the issuer says which project.
+        decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(issuer));
+
+        return decoder;
     }
 
     @Bean
