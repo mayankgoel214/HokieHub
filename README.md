@@ -7,6 +7,9 @@ furniture, electronics, and services like tutoring — restricted to verified
 **Stack:** Next.js 15 · React 19 · TypeScript · **Java 21 · Spring Boot 3.5** ·
 PostgreSQL · Flyway · Redis · Supabase Auth · Docker
 
+**Live:** [hokiehub.vercel.app](https://hokiehub.vercel.app) · API on Railway ·
+[36-second walkthrough](docs/hokiehub-demo.mp4)
+
 ## Architecture
 
 Two services, split along a deliberate line:
